@@ -6,6 +6,8 @@
          Version Control Systems. -->
     <property file="local.properties" />
 
+    <property environment="env" />
+ 
     <!-- The ant.properties file can be created by you. It is only edited by the
          'android' tool to add properties to it.
          This is the place to change some Ant specific build properties.
@@ -38,6 +40,10 @@
          This file is an integral part of the build system for your
          application and should be checked into Version Control Systems. -->
     <loadproperties srcFile="project.properties" />
+
+    <condition property="sdk.dir" value="${env.ANDROID_HOME}">
+        <isset property="env.ANDROID_HOME" />
+    </condition>
 
     <!-- quick check on sdk.dir -->
     <fail
