@@ -50,7 +50,7 @@ THE SOFTWARE.
 #include "CCAccelerometer.h"
 #include "sprite_nodes/CCAnimationCache.h"
 #include "touch_dispatcher/CCTouch.h"
-#include "support/CCUserDefault.h"
+#include "support/user_default/CCUserDefault.h"
 #include "shaders/ccGLStateCache.h"
 #include "shaders/CCShaderCache.h"
 #include "kazmath/kazmath.h"
@@ -294,7 +294,10 @@ void CCDirector::calculateDeltaTime(void)
 
     *m_pLastUpdate = now;
 }
-
+float CCDirector::getDeltaTime()
+{
+	return m_fDeltaTime;
+}
 void CCDirector::setOpenGLView(CCEGLView *pobOpenGLView)
 {
     CCAssert(pobOpenGLView, "opengl view should not be null");
