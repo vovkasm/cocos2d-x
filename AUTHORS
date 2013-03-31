@@ -12,6 +12,9 @@ Developers:
     Rolando Abarca
         Javascript Binding and testjs
 
+    biteforest
+        fix cc scale9 sprite bug
+
     Jimmy Sambuo
         fix the bug that SimpleAudioEngine::playEffect() and playBackgroundMusic() play twice on linux
 
@@ -22,7 +25,8 @@ Developers:
         fix an error that OpenSLEngine can't load resources from SD card
 
     billy1380
-        make CCLens3d support concave effect
+        make CCLens3d support concave effect.
+        Adding 64bit target for Mac project.
 
     benjamesward
         add Portuguese and Arabic language support
@@ -71,6 +75,9 @@ Developers:
         Used fontconfig to enhance font rendering on linux.
         Fixed a bug about missing horizontal alignment for Custom TTF fonts on linux.
         Fixed a bug that the truetype fonts from resource directory can't be found on linux.
+        Fixed the size calculations for true type fonts (especially for italic fonts).
+        Added a very simple greedy line break algorithmfor true type labels.
+        Fixed font rendering crash for certain fonts on linux.
 
     Nat Weiss (iphonegamekit.com)
         author of Mac port
@@ -98,6 +105,8 @@ Developers:
 
     Rohan Kuruvilla (rohankuruvilla, Zynga)
         Improvements to JS Bindings.
+        Synchronizing CCBReader to version 5.
+        Adding OpenGL Bindings to Javascript.
 
     Jianfeng Zou (NetDragon Inc)
         contributes CCListView and CCTextureWatcher.
@@ -202,6 +211,7 @@ Developers:
 
     tiantian20007
         Fix crash for call runAnimation() in CCBAnimationManagerDelegate::completedAnimationSequenceNamed.
+        Fixing a bug that CCControl's touch priority is not set correctly; m_nDefaultTouchPriority is never used.
 
     xyhl515
         Fixed a bug that CCControlSwitch::setOn(isOn,false) doesn't work.
@@ -241,6 +251,18 @@ Developers:
 
     Asad ur Rehman (AsadR)
         Adding CCNotificationCenter::removeAllObservers(CCObject *target).
+
+    jedy
+        Fix of CCNode.h's document with doxygen 1.8.3 can't be generated.
+
+    whitegfx
+        Implementation of kEditBoxInputFlagSensitive setting for CCEditBoxImplIOS.
+
+    Zecken (gelldur)
+        Fixing a profiling compilation error in CCParticleBatchNode.
+
+    flamingo (flaming0)
+        Null pointer check in order to prevent crashes.
 
 Retired Core Developers:
     WenSheng Yang

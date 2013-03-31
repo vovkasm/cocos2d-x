@@ -59,6 +59,7 @@ cc.GREEN = {r:0, g:255, b:0};
 cc.BLUE = {r:0, g:0, b:255};
 cc.BLACK = {r:0, g:0, b:0};
 cc.WHITE = {r:255, g:255, b:255};
+cc.YELLOW = {r:255, g:255, b:0};
 
 cc.POINT_ZERO = {x:0, y:0};
 
@@ -380,8 +381,8 @@ cc.associateWithNative = function( jsobj, superclass_or_instance ) {
 
     try {
         // Used when subclassing using the "extend" method
-        var native = new superclass_or_instance();
-        __associateObjWithNative( jsobj, native );
+        var nativeObj = new superclass_or_instance();
+        __associateObjWithNative( jsobj, nativeObj );
     } catch(err) {
         // Used when subclassing using the goog.inherits method
        __associateObjWithNative( jsobj, superclass_or_instance );
@@ -499,6 +500,7 @@ cc.Class.extend = function (prop) {
 };
 
 cc.Node.prototype.ctor = function() {};
+cc.GLNode.extend = cc.Class.extend;
 cc.Node.extend = cc.Class.extend;
 cc.Layer.extend = cc.Class.extend;
 cc.LayerGradient.extend = cc.Class.extend;
