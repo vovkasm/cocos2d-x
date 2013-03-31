@@ -2,8 +2,8 @@ all:
 
 CC = gcc
 CXX = g++
-CCFLAGS += -MMD -Wall -Werror -fPIC
-CXXFLAGS += -MMD -Wall -Werror -fPIC
+CCFLAGS += -MMD -Wall -fPIC
+CXXFLAGS += -MMD -Wall -fPIC
 ARFLAGS = cr
 
 DEFINES += -DLINUX
@@ -75,7 +75,7 @@ STATICLIBS_DIR = $(COCOS_SRC)/platform/third_party/linux/libraries/lib64
 else
 STATICLIBS_DIR = $(COCOS_SRC)/platform/third_party/linux/libraries
 endif
-STATICLIBS = $(STATICLIBS_DIR)/libfreetype.a \
+STATICLIBS += $(STATICLIBS_DIR)/libfreetype.a \
     $(STATICLIBS_DIR)/libpng.a \
     $(STATICLIBS_DIR)/libjpeg.a \
     $(STATICLIBS_DIR)/libtiff.a \
@@ -89,10 +89,10 @@ FMOD_LIBDIR = $(COCOS_ROOT)/CocosDenshion/third_party/fmod/api/lib
 SHAREDLIBS += -lfmodex
 endif
 
-SHAREDLIBS += -lglfw -lGLEW -lfontconfig
+SHAREDLIBS += -lGL -lglfw -lGLEW -lfontconfig
 SHAREDLIBS += -L$(FMOD_LIBDIR) -Wl,-rpath,$(RPATH_REL)/$(FMOD_LIBDIR)
 SHAREDLIBS += -L$(LIB_DIR) -Wl,-rpath,$(RPATH_REL)/$(LIB_DIR)
-LIBS = -lrt -lz
+LIBS = -lpthread -lrt -lz
 
 clean:
 	rm -rf $(OBJ_DIR)
