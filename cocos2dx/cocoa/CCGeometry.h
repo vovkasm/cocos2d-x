@@ -35,6 +35,11 @@ NS_CC_BEGIN
  * @{
  */
 
+/**
+ * 2D point class.
+ * Represent two-dimensional point in Euclidian space.
+ */
+
 class CC_DLL CCPoint
 {
 public:
@@ -42,12 +47,12 @@ public:
     float y;
 
 public:
-    CCPoint();
-    CCPoint(float x, float y);
-    CCPoint(const CCPoint& other);
+    CCPoint();                                  ///< Constructs (0,0) point
+    CCPoint(float x, float y);                  ///< Constructs (x,y) point
+    CCPoint(const CCPoint& other);              ///< Constructs point same as other
     CCPoint& operator= (const CCPoint& other);
-    void setPoint(float x, float y);
-    bool equals(const CCPoint& target) const;
+    void setPoint(float x, float y);            ///< Assigns coordinates x and y to point
+    bool equals(const CCPoint& target) const;   ///< Compare two points by value
 };
 
 class CC_DLL CCSize
@@ -77,12 +82,12 @@ public:
     CCRect(const CCRect& other);
     CCRect& operator= (const CCRect& other); 
     void setRect(float x, float y, float width, float height);
-    float getMinX() const; /// return the leftmost x-value of current rect
-    float getMidX() const; /// return the midpoint x-value of current rect
-    float getMaxX() const; /// return the rightmost x-value of current rect
-    float getMinY() const; /// return the bottommost y-value of current rect
-    float getMidY() const; /// return the midpoint y-value of current rect
-    float getMaxY() const; /// return the topmost y-value of current rect
+    float getMinX() const; ///< return the leftmost x-value of current rect
+    float getMidX() const; ///< return the midpoint x-value of current rect
+    float getMaxX() const; ///< return the rightmost x-value of current rect
+    float getMinY() const; ///< return the bottommost y-value of current rect
+    float getMidY() const; ///< return the midpoint y-value of current rect
+    float getMaxY() const; ///< return the topmost y-value of current rect
     bool equals(const CCRect& rect) const;   
     bool containsPoint(const CCPoint& point) const;
     bool intersectsRect(const CCRect& rect) const;
