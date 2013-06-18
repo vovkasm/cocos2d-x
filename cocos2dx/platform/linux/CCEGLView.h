@@ -11,6 +11,7 @@
 #include "platform/CCCommon.h"
 #include "cocoa/CCGeometry.h"
 #include "platform/CCEGLViewProtocol.h"
+#include "GLFW/glfw3.h"
 
 bool initExtensions();
 
@@ -21,10 +22,10 @@ public:
 	CCEGLView();
 	virtual ~CCEGLView();
 
-	friend void keyEventHandle(int,int);
-	friend void mouseButtonEventHandle(int,int);
-	friend void mousePosEventHandle(int,int);
-	friend void charEventHandle(int,int);
+	friend void keyEventHandle(GLFWwindow*,int,int,int,int);
+	friend void mouseButtonEventHandle(GLFWwindow*,int,int,int);
+	friend void cursorPosEventHandle(GLFWwindow*,double,double);
+	friend void charEventHandle(GLFWwindow*,unsigned int);
 
 	/**
 	 * iPixelWidth, height: the window's size
@@ -53,6 +54,7 @@ private:
 	bool initGL();
 	void destroyGL();
 private:
+    GLFWwindow* p_window;
 	//store current mouse point for moving, valid if and only if the mouse pressed
 	CCPoint m_mousePoint;
 	bool bIsInit;

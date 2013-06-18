@@ -7,7 +7,6 @@
 
 #include "CCEGLView.h"
 #include "CCGL.h"
-#include "GL/glfw.h"
 #include "ccMacros.h"
 #include "CCDirector.h"
 #include "touch_dispatcher/CCTouch.h"
@@ -31,9 +30,6 @@ bool initExtensions() {
 #define LOAD_EXTENSION_FUNCTION(TYPE, FN)  FN = (TYPE)glfwGetProcAddress(#FN);
 	bool bRet = false;
 	do {
-
-//		char* p = (char*) glGetString(GL_EXTENSIONS);
-//		printf(p);
 
 		/* Supports frame buffer? */
 		if (glfwExtensionSupported("GL_EXT_framebuffer_object") != GL_FALSE)
@@ -85,12 +81,12 @@ CCEGLView::~CCEGLView()
 {
 }
 
-void keyEventHandle(int iKeyID,int iKeyState) {
+void keyEventHandle(GLFWwindow* p_window,int iKeyID,int iScanCode,int iKeyState,int iMods) {
 	if (iKeyState ==GLFW_RELEASE) {
 		return;
 	}
 
-	if (iKeyID == GLFW_KEY_DEL) {
+	if (iKeyID == GLFW_KEY_DELETE) {
 		CCIMEDispatcher::sharedDispatcher()->dispatchDeleteBackward();
 	} else if (iKeyID == GLFW_KEY_ENTER) {
 		CCIMEDispatcher::sharedDispatcher()->dispatchInsertText("\n", 1);
@@ -99,22 +95,17 @@ void keyEventHandle(int iKeyID,int iKeyState) {
 	}
 }
 
-void charEventHandle(int iCharID,int iCharState) {
-	if (iCharState ==GLFW_RELEASE) {
-		return;
-	}
-
-	// ascii char
-	CCIMEDispatcher::sharedDispatcher()->dispatchInsertText((const char *)&iCharID, 1);
+void charEventHandle(GLFWwindow* p_window, unsigned int uiCharID) {
+	CCIMEDispatcher::sharedDispatcher()->dispatchInsertText((const char *)&uiCharID, 1);
 }
 
-void mouseButtonEventHandle(int iMouseID,int iMouseState) {
+void mouseButtonEventHandle(GLFWwindow* p_window,int iMouseID,int iMouseState,int iMods) {
 	if (iMouseID == GLFW_MOUSE_BUTTON_LEFT) {
         CCEGLView* pEGLView = CCEGLView::sharedOpenGLView();
 		//get current mouse pos
-		int x,y;
-		glfwGetMousePos(&x, &y);
-		CCPoint oPoint((float)x,(float)y);
+		double x,y;
+		glfwGetCursorPos(p_window, &x, &y);
+		CCPoint oPoint(x,y);
 		/*
 		if (!CCRect::CCRectContainsPoint(s_pMainWindow->m_rcViewPort,oPoint))
 		{
@@ -134,31 +125,28 @@ void mouseButtonEventHandle(int iMouseID,int iMouseState) {
 	}
 }
 
-void mousePosEventHandle(int iPosX,int iPosY) {
-	int iButtonState = glfwGetMouseButton(GLFW_MOUSE_BUTTON_LEFT);
+void cursorPosEventHandle(GLFWwindow* p_window,double dPosX,double dPosY) {
+	int iButtonState = glfwGetMouseButton(p_window, GLFW_MOUSE_BUTTON_LEFT);
 
 	//to test move
 	if (iButtonState == GLFW_PRESS) {
             CCEGLView* pEGLView = CCEGLView::sharedOpenGLView();
             int id = 0;
-            float x = (float)iPosX;
-            float y = (float)iPosY;
+            float x = dPosX;
+            float y = dPosY;
             x /= pEGLView->m_fFrameZoomFactor;
             y /= pEGLView->m_fFrameZoomFactor;
             pEGLView->handleTouchesMove(1, &id, &x, &y);
 	}
 }
 
-int closeEventHandle() {
+void closeEventHandle(GLFWwindow* p_window) {
 	CCDirector::sharedDirector()->end();
-	return GL_TRUE;
 }
 
 void CCEGLView::setFrameSize(float width, float height)
 {
 	bool eResult = false;
-	int u32GLFWFlags = GLFW_WINDOW;
-	//create the window by glfw.
 
 	//check
 	CCAssert(width!=0&&height!=0, "invalid window's size equal 0");
@@ -171,7 +159,7 @@ void CCEGLView::setFrameSize(float width, float height)
 	}
 
 	/* Updates window hint */
-	glfwOpenWindowHint(GLFW_WINDOW_NO_RESIZE, GL_TRUE);
+	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
 	int iDepth = 16; // set default value
 	/* Depending on video depth */
@@ -180,18 +168,22 @@ void CCEGLView::setFrameSize(float width, float height)
 		/* 16-bit */
 		case 16:
 		{
-			/* Updates video mode */
-			eResult = (glfwOpenWindow(width, height, 5, 6, 5, 0, 16, 8, (int)u32GLFWFlags) != false) ? true : false;
-
+            glfwWindowHint(GLFW_RED_BITS, 5);
+            glfwWindowHint(GLFW_GREEN_BITS, 6);
+            glfwWindowHint(GLFW_BLUE_BITS, 5);
+            glfwWindowHint(GLFW_ALPHA_BITS, 0);
+            glfwWindowHint(GLFW_DEPTH_BITS, 16);
 			break;
 		}
 
 		/* 24-bit */
 		case 24:
 		{
-			/* Updates video mode */
-			eResult = (glfwOpenWindow(width, height, 8, 8, 8, 0, 16, 8, (int)u32GLFWFlags) != false) ? true : false;
-
+            glfwWindowHint(GLFW_RED_BITS, 8);
+            glfwWindowHint(GLFW_GREEN_BITS, 8);
+            glfwWindowHint(GLFW_BLUE_BITS, 8);
+            glfwWindowHint(GLFW_ALPHA_BITS, 0);
+            glfwWindowHint(GLFW_DEPTH_BITS, 24);
 			break;
 		}
 
@@ -199,37 +191,41 @@ void CCEGLView::setFrameSize(float width, float height)
 		default:
 		case 32:
 		{
-			/* Updates video mode */
-			eResult = (glfwOpenWindow(width, height, 8, 8, 8, 8, 16, 8, (int)u32GLFWFlags) != GL_FALSE) ? true :false;
+            glfwWindowHint(GLFW_RED_BITS, 8);
+            glfwWindowHint(GLFW_GREEN_BITS, 8);
+            glfwWindowHint(GLFW_BLUE_BITS, 8);
+            glfwWindowHint(GLFW_ALPHA_BITS, 8);
+            glfwWindowHint(GLFW_DEPTH_BITS, 32);
 			break;
 		}
 	}
 
+    p_window = glfwCreateWindow(width, height, "Cocos2dx-Linux", NULL, NULL);
+    eResult = p_window ? true : false;
+
 	/* Success? */
 	if(eResult)
 	{
+        glfwMakeContextCurrent(p_window);
 
 		/* Updates actual size */
-	  //		glfwGetWindowSize(&width, &height);
-
-		CCEGLViewProtocol::setFrameSize(width, height);		
-
-		/* Updates its title */
-		glfwSetWindowTitle("Cocos2dx-Linux");
+        int iWidth, iHeight;
+	  	glfwGetWindowSize(p_window, &iWidth, &iHeight);
+		CCEGLViewProtocol::setFrameSize(iWidth, iHeight);		
 
 		//set the init flag
 		bIsInit = true;
 
 		//register the glfw key event
-		glfwSetKeyCallback(keyEventHandle);
+		glfwSetKeyCallback(p_window, keyEventHandle);
 		//register the glfw char event
-		glfwSetCharCallback(charEventHandle);
+		glfwSetCharCallback(p_window, charEventHandle);
 		//register the glfw mouse event
-		glfwSetMouseButtonCallback(mouseButtonEventHandle);
+		glfwSetMouseButtonCallback(p_window, mouseButtonEventHandle);
 		//register the glfw mouse pos event
-		glfwSetMousePosCallback(mousePosEventHandle);
+		glfwSetCursorPosCallback(p_window, cursorPosEventHandle);
 
-		glfwSetWindowCloseCallback(closeEventHandle);
+		glfwSetWindowCloseCallback(p_window, closeEventHandle);
 
 		//Inits extensions
 		eResult = initExtensions();
@@ -244,7 +240,7 @@ void CCEGLView::setFrameSize(float width, float height)
 void CCEGLView::setFrameZoomFactor(float fZoomFactor)
 {
     m_fFrameZoomFactor = fZoomFactor;
-    glfwSetWindowSize(m_obScreenSize.width * fZoomFactor, m_obScreenSize.height * fZoomFactor);
+    glfwSetWindowSize(p_window, m_obScreenSize.width * fZoomFactor, m_obScreenSize.height * fZoomFactor);
     CCDirector::sharedDirector()->setProjection(CCDirector::sharedDirector()->getProjection());
 }
 
@@ -286,7 +282,8 @@ void CCEGLView::end()
 void CCEGLView::swapBuffers() {
 	if (bIsInit) {
 		/* Swap buffers */
-		glfwSwapBuffers();
+		glfwSwapBuffers(p_window);
+        glfwPollEvents();
 	}
 }
 
