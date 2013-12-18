@@ -588,19 +588,11 @@ TMXOrthoObjectsTest::TMXOrthoObjectsTest()
     Size CC_UNUSED s = map->getContentSize();
     CCLOG("ContentSize: %f, %f", s.width,s.height);
     
-    ////----CCLOG("----> Iterating over all the group objets");
     auto group = map->getObjectGroup("Object Group 1");
     auto& objects = group->getObjects();
 
-    for (auto& obj : objects)
-    {
-        ValueMap& dict = obj.asValueMap();
-        ////----CCLOG("object: %x", dict);
-    }
-    
-    ////----CCLOG("----> Fetching 1 object by name");
-    // auto platform = group->objectNamed("platform");
-    ////----CCLOG("platform: %x", platform);
+    Value objectsVal = Value(objects);
+    CCLOG("%s", objectsVal.getDescription().c_str());
 }
 
 void TMXOrthoObjectsTest::draw()
@@ -657,15 +649,10 @@ TMXIsoObjectsTest::TMXIsoObjectsTest()
 
     auto group = map->getObjectGroup("Object Group 1");
 
-    //auto objects = group->objects();
     auto& objects = group->getObjects();
-    //UxMutableDictionary<std::string>* dict;
-    for (auto& obj : objects)
-    {
-        ValueMap& dict = obj.asValueMap();
-
-        ////----CCLOG("object: %x", dict);
-    }        
+    
+    Value objectsVal = Value(objects);
+    CCLOG("%s", objectsVal.getDescription().c_str());
 }
 
 void TMXIsoObjectsTest::draw()
@@ -795,7 +782,7 @@ void TMXIsoZorder::repositionSprite(float dt)
     // if tamara < 144,z=2
     
     int newZ = 4 - (p.y / 48);
-    newZ = max(newZ,0);
+    newZ = std::max(newZ,0);
     
     map->reorderChild(_tamara, newZ);    
 }
@@ -856,7 +843,7 @@ void TMXOrthoZorder::repositionSprite(float dt)
 
     // -10: customization for this particular sample
     int newZ = 4 - ( (p.y-10) / 81);
-    newZ = max(newZ,0);
+    newZ = std::max(newZ,0);
 
     map->reorderChild(_tamara, newZ);
 }
@@ -1197,8 +1184,8 @@ void TMXOrthoFlipRunTimeTest::flipIt(float dt)
 
 TMXOrthoFromXMLTest::TMXOrthoFromXMLTest()
 {
-    string resources = "TileMaps";        // partial paths are OK as resource paths.
-    string file = resources + "/orthogonal-test1.tmx";
+    std::string resources = "TileMaps";        // partial paths are OK as resource paths.
+    std::string file = resources + "/orthogonal-test1.tmx";
 
     auto str = String::createWithContentsOfFile(FileUtils::getInstance()->fullPathForFilename(file.c_str()).c_str());
     CCASSERT(str != NULL, "Unable to open file");
@@ -1482,12 +1469,12 @@ void TMXGIDObjectsTest::draw()
     }
 }
 
-string TMXGIDObjectsTest::title()
+std::string TMXGIDObjectsTest::title()
 {
     return "TMX GID objects";
 }
 
-string TMXGIDObjectsTest::subtitle()
+std::string TMXGIDObjectsTest::subtitle()
 {
     return "Tiles are created from an object group";
 }
