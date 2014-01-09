@@ -1,6 +1,7 @@
 /****************************************************************************
-Copyright (c) 2010-2012 cocos2d-x.org
 Copyright (c) 2010      Ricardo Quesada
+Copyright (c) 2010-2012 cocos2d-x.org
+Copyright (c) 2013-2014 Chukong Technologies Inc.
 
 http://www.cocos2d-x.org
 
@@ -128,7 +129,7 @@ public:
 	void gatherGPUInfo();
 
 	/** Loads a config file. If the keys are already present, then they are going to be replaced. Otherwise the new keys are added. */
-	void loadConfigFile(const char *filename);
+	void loadConfigFile(const std::string& filename);
 
 private:
     Configuration(void);

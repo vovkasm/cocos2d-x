@@ -1,5 +1,5 @@
 /****************************************************************************
- Copyright (c) 2013 cocos2d-x.org
+ Copyright (c) 2013-2014 Chukong Technologies Inc.
 
  http://www.cocos2d-x.org
 
@@ -29,6 +29,7 @@
 #include "CCEventListenerAcceleration.h"
 #include "CCEventListenerMouse.h"
 #include "CCEventListenerKeyboard.h"
+#include "CCEventListenerCustom.h"
 
 #include "CCNode.h"
 #include "CCDirector.h"
@@ -96,10 +97,10 @@ static EventListener::ListenerID __getListenerID(Event* event)
     return ret;
 }
 
-EventDispatcher::EventListenerVector::EventListenerVector()
-: _sceneGraphListeners(nullptr)
-, _fixedListeners(nullptr)
-, _gt0Index(0)
+EventDispatcher::EventListenerVector::EventListenerVector() :
+ _fixedListeners(nullptr),
+ _sceneGraphListeners(nullptr),
+ _gt0Index(0)
 {
 }
 
@@ -278,11 +279,10 @@ void EventDispatcher::associateNodeAndEventListener(Node* node, EventListener* l
     else
     {
         listeners = new std::vector<EventListener*>();
+        _nodeListenersMap.insert(std::make_pair(node, listeners));
     }
     
     listeners->push_back(listener);
-    
-    _nodeListenersMap.insert(std::make_pair(node, listeners));
 }
 
 void EventDispatcher::dissociateNodeAndEventListener(Node* node, EventListener* listener)
@@ -310,33 +310,51 @@ void EventDispatcher::addEventListener(EventListener* listener)
 {
     if (_inDispatch == 0)
     {
-        EventListenerVector* listenerList = nullptr;
-        
-        auto iter = _listeners.find(listener->getListenerID());
-        if (iter == _listeners.end())
-        {
-            listenerList = new EventListenerVector();
-            _listeners.insert(std::make_pair(listener->getListenerID(), listenerList));
-        }
-        else
-        {
-            listenerList = iter->second;
-        }
-
-        listenerList->push_back(listener);
-        
-        if (listener->getFixedPriority() == 0)
-        {
-            setDirty(listener->getListenerID(), DirtyFlag::SCENE_GRAPH_PRIORITY);
-        }
-        else
-        {
-            setDirty(listener->getListenerID(), DirtyFlag::FIXED_PRITORY);
-        }
+        forceAddEventListener(listener);
     }
     else
     {
         _toAddedListeners.push_back(listener);
+    }
+
+    listener->retain();
+}
+
+void EventDispatcher::forceAddEventListener(EventListener* listener)
+{
+    EventListenerVector* listeners = nullptr;
+    EventListener::ListenerID listenerID = listener->getListenerID();
+    auto itr = _listeners.find(listenerID);
+    if (itr == _listeners.end())
+    {
+        
+        listeners = new EventListenerVector();
+        _listeners.insert(std::make_pair(listenerID, listeners));
+    }
+    else
+    {
+        listeners = itr->second;
+    }
+    
+    listeners->push_back(listener);
+    
+    if (listener->getFixedPriority() == 0)
+    {
+        setDirty(listenerID, DirtyFlag::SCENE_GRAPH_PRIORITY);
+        
+        auto node = listener->getSceneGraphPriority();
+        CCASSERT(node != nullptr, "Invalid scene graph priority!");
+        
+        associateNodeAndEventListener(node, listener);
+        
+        if (node->isRunning())
+        {
+            resumeTarget(node);
+        }
+    }
+    else
+    {
+        setDirty(listenerID, DirtyFlag::FIXED_PRITORY);
     }
 }
 
@@ -352,15 +370,7 @@ void EventDispatcher::addEventListenerWithSceneGraphPriority(EventListener* list
     listener->setFixedPriority(0);
     listener->setRegistered(true);
     
-    listener->retain();
     addEventListener(listener);
-
-    associateNodeAndEventListener(node, listener);
-    
-    if (node->isRunning())
-    {
-        resumeTarget(node);
-    }
 }
 
 void EventDispatcher::addEventListenerWithFixedPriority(EventListener* listener, int fixedPriority)
@@ -376,10 +386,15 @@ void EventDispatcher::addEventListenerWithFixedPriority(EventListener* listener,
     listener->setFixedPriority(fixedPriority);
     listener->setRegistered(true);
     listener->setPaused(false);
-    
-    listener->retain();
 
     addEventListener(listener);
+}
+
+EventListenerCustom* EventDispatcher::addCustomEventListener(const std::string &eventName, std::function<void(EventCustom*)> callback)
+{
+    EventListenerCustom *listener = EventListenerCustom::create(eventName, callback);
+    addEventListenerWithFixedPriority(listener, 1);
+    return listener;
 }
 
 void EventDispatcher::removeEventListener(EventListener* listener)
@@ -455,6 +470,7 @@ void EventDispatcher::removeEventListener(EventListener* listener)
         {
             if (*iter == listener)
             {
+                listener->release();
                 _toAddedListeners.erase(iter);
                 break;
             }
@@ -494,11 +510,12 @@ void EventDispatcher::dispatchEventToListeners(EventListenerVector* listeners, s
     auto fixedPriorityListeners = listeners->getFixedPriorityListeners();
     auto sceneGraphPriorityListeners = listeners->getSceneGraphPriorityListeners();
     
-    int i = 0;
+    ssize_t i = 0;
     // priority < 0
     if (fixedPriorityListeners)
     {
-        for (; !fixedPriorityListeners->empty() && i < listeners->getGt0Index(); ++i)
+        bool isEmpty = fixedPriorityListeners->empty();
+        for (; !isEmpty && i < listeners->getGt0Index(); ++i)
         {
             auto l = fixedPriorityListeners->at(i);
             if (!l->isPaused() && l->isRegistered() && onEvent(l))
@@ -530,7 +547,8 @@ void EventDispatcher::dispatchEventToListeners(EventListenerVector* listeners, s
         if (!shouldStopPropagation)
         {
             // priority > 0
-            for (; i < fixedPriorityListeners->size(); ++i)
+            ssize_t size = fixedPriorityListeners->size();
+            for (; i < size; ++i)
             {
                 auto l = fixedPriorityListeners->at(i);
                 
@@ -580,6 +598,14 @@ void EventDispatcher::dispatchEvent(Event* event)
     
     updateListeners(event);
 }
+
+void EventDispatcher::dispatchCustomEvent(const std::string &eventName, void *optionalUserData)
+{
+    EventCustom ev(eventName);
+    ev.setUserData(optionalUserData);
+    dispatchEvent(&ev);
+}
+
 
 void EventDispatcher::dispatchTouchEvent(EventTouch* event)
 {
@@ -855,33 +881,9 @@ void EventDispatcher::updateListeners(Event* event)
     
     if (!_toAddedListeners.empty())
     {
-        EventListenerVector* listeners = nullptr;
-        
         for (auto& listener : _toAddedListeners)
         {
-            EventListener::ListenerID listenerID = listener->getListenerID();
-            auto itr = _listeners.find(listenerID);
-            if (itr == _listeners.end())
-            {
-                
-                listeners = new EventListenerVector();
-                _listeners.insert(std::make_pair(listenerID, listeners));
-            }
-            else
-            {
-                listeners = itr->second;
-            }
-            
-            listeners->push_back(listener);
-            
-            if (listener->getFixedPriority() == 0)
-            {
-                setDirty(listenerID, DirtyFlag::SCENE_GRAPH_PRIORITY);
-            }
-            else
-            {
-                setDirty(listenerID, DirtyFlag::FIXED_PRITORY);
-            }
+            forceAddEventListener(listener);
         }
         _toAddedListeners.clear();
     }
@@ -1053,10 +1055,11 @@ void EventDispatcher::removeEventListenersForListenerID(const EventListener::Lis
         }
     }
     
-    for(auto iter = _toAddedListeners.begin(); iter != _toAddedListeners.end();)
+    for (auto iter = _toAddedListeners.begin(); iter != _toAddedListeners.end();)
     {
         if ((*iter)->getListenerID() == listenerID)
         {
+            (*iter)->release();
             iter = _toAddedListeners.erase(iter);
         }
         else

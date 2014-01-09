@@ -1,5 +1,5 @@
 /****************************************************************************
- Copyright (c) 2013 cocos2d-x.org
+ Copyright (c) 2013-2014 Chukong Technologies Inc.
  
  http://www.cocos2d-x.org
  
@@ -46,6 +46,8 @@ private:
     
     bool init(std::function<void(Acceleration*, Event* event)> callback);
     std::function<void(Acceleration*, Event*)> onAccelerationEvent;
+    
+    friend class LuaEventListenerAcceleration;
 };
 
 NS_CC_END

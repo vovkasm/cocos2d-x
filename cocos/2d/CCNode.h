@@ -1,8 +1,9 @@
 /****************************************************************************
- Copyright (c) 2010-2012 cocos2d-x.org
  Copyright (c) 2008-2010 Ricardo Quesada
- Copyright (c) 2009      Valentin Milea
- Copyright (c) 2011      Zynga Inc.
+Copyright (c) 2009      Valentin Milea
+Copyright (c) 2010-2012 cocos2d-x.org
+Copyright (c) 2011      Zynga Inc.
+Copyright (c) 2013-2014 Chukong Technologies Inc.
 
  http://www.cocos2d-x.org
 
@@ -53,7 +54,8 @@ class ActionManager;
 class Component;
 class ComponentContainer;
 class EventDispatcher;
-#ifdef CC_USE_PHYSICS
+class Scene;
+#if CC_USE_PHYSICS
 class PhysicsBody;
 #endif
 
@@ -589,7 +591,7 @@ public:
      *
      * @return a Node object whose tag equals to the input parameter
      */
-    Node * getChildByTag(int tag);
+    virtual Node * getChildByTag(int tag);
     /**
      * Return an array of children
      *
@@ -614,7 +616,7 @@ public:
      *
      * @return The amount of children.
      */
-    ssize_t getChildrenCount() const;
+    virtual ssize_t getChildrenCount() const;
 
     /**
      * Sets the parent node
@@ -910,6 +912,11 @@ public:
      */
     virtual void visit();
 
+    /** Returns the Scene that contains the Node.
+     It returns `nullptr` if the node doesn't belong to any Scene.
+     This function recursively calls parent->getScene() until parent is a Scene object. The results are not cached. It is that the user caches the results in case this functions is being used inside a loop.
+     */
+    virtual Scene* getScene();
 
     /**
      * Returns a "local" axis aligned bounding box of the node.
@@ -1316,7 +1323,7 @@ public:
     /**
      *   gets a component by its name
      */
-    Component* getComponent(const char *pName);
+    Component* getComponent(const std::string& pName);
 
     /**
      *   adds a component
@@ -1326,7 +1333,7 @@ public:
     /**
      *   removes a component by its name
      */
-    virtual bool removeComponent(const char *pName);
+    virtual bool removeComponent(const std::string& pName);
 
     /**
      *   removes all components
@@ -1335,7 +1342,7 @@ public:
     /// @} end of component functions
 
 
-#ifdef CC_USE_PHYSICS
+#if CC_USE_PHYSICS
     /**
      *   set the PhysicsBody that let the sprite effect with physics
      */
@@ -1459,7 +1466,7 @@ protected:
 
     ComponentContainer *_componentContainer;        ///< Dictionary of components
 
-#ifdef CC_USE_PHYSICS
+#if CC_USE_PHYSICS
     PhysicsBody* _physicsBody;        ///< the physicsBody the node have
 #endif
     

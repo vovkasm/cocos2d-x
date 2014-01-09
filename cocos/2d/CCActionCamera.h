@@ -1,7 +1,9 @@
 /****************************************************************************
-Copyright (c) 2010-2012 cocos2d-x.org
 Copyright (c) 2008-2010 Ricardo Quesada
-
+Copyright (c) 2010-2012 cocos2d-x.org
+Copyright (c) 2011      Zynga Inc.
+Copyright (c) 2013-2014 Chukong Technologies Inc.
+ 
 http://www.cocos2d-x.org
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -58,7 +60,6 @@ public:
         ,_upX(0)
         ,_upY(1)
         ,_upZ(0)
-        ,_dirty(false)
     {}
     /**
      * @js NA
@@ -88,7 +89,6 @@ protected:
     float _upX;
     float _upY;
     float _upZ;
-    bool _dirty;
 };
 
 /** 

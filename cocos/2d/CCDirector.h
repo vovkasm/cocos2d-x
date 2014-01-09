@@ -1,7 +1,8 @@
 /****************************************************************************
-Copyright (c) 2010-2012 cocos2d-x.org
-Copyright (c) 2008-2010 Ricardo Quesada
-Copyright (c) 2011      Zynga Inc.
+ Copyright (c) 2008-2010 Ricardo Quesada
+ Copyright (c) 2010-2013 cocos2d-x.org
+ Copyright (c) 2011      Zynga Inc.
+ Copyright (c) 2013-2014 Chukong Technologies Inc.
 
 http://www.cocos2d-x.org
 
@@ -54,6 +55,8 @@ class Node;
 class Scheduler;
 class ActionManager;
 class EventDispatcher;
+class EventCustom;
+class EventListenerCustom;
 class TextureCache;
 class Frustum;
 class Renderer;
@@ -81,6 +84,12 @@ and when to execute the Scenes.
 class CC_DLL Director : public Object
 {
 public:
+    static const char *EVENT_PROJECTION_CHANGED;
+    static const char* EVENT_AFTER_UPDATE;
+    static const char* EVENT_AFTER_VISIT;
+    static const char* EVENT_AFTER_DRAW;
+
+
     /** @typedef ccDirectorProjection
      Possible OpenGL projections used by director
      */
@@ -384,7 +393,7 @@ public:
 
 protected:
     void purgeDirector();
-    bool _purgeDirecotorInNextLoop; // this flag will be set to true in end()
+    bool _purgeDirectorInNextLoop; // this flag will be set to true in end()
     
     void setNextScene();
     
@@ -414,6 +423,7 @@ protected:
      @since v3.0
      */
     EventDispatcher* _eventDispatcher;
+    EventCustom *_eventProjectionChanged, *_eventAfterDraw, *_eventAfterVisit, *_eventAfterUpdate;
         
     /* delta time since last tick to main loop */
 	float _deltaTime;

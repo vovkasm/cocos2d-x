@@ -1,6 +1,7 @@
 /****************************************************************************
+Copyright (c) 2011      ForzeField Studios S.L.
 Copyright (c) 2010-2012 cocos2d-x.org
-Copyright (c) 2011 ForzeField Studios S.L.
+Copyright (c) 2013-2014 Chukong Technologies Inc.
 
 http://www.cocos2d-x.org
 
@@ -65,7 +66,7 @@ MotionStreak::~MotionStreak()
     CC_SAFE_FREE(_texCoords);
 }
 
-MotionStreak* MotionStreak::create(float fade, float minSeg, float stroke, const Color3B& color, const char* path)
+MotionStreak* MotionStreak::create(float fade, float minSeg, float stroke, const Color3B& color, const std::string& path)
 {
     MotionStreak *ret = new MotionStreak();
     if (ret && ret->initWithFade(fade, minSeg, stroke, color, path))
@@ -91,9 +92,9 @@ MotionStreak* MotionStreak::create(float fade, float minSeg, float stroke, const
     return nullptr;
 }
 
-bool MotionStreak::initWithFade(float fade, float minSeg, float stroke, const Color3B& color, const char* path)
+bool MotionStreak::initWithFade(float fade, float minSeg, float stroke, const Color3B& color, const std::string& path)
 {
-    CCASSERT(path != nullptr, "Invalid filename");
+    CCASSERT(!path.empty(), "Invalid filename");
 
     Texture2D *texture = Director::getInstance()->getTextureCache()->addImage(path);
     return initWithFade(fade, minSeg, stroke, color, texture);
@@ -358,10 +359,9 @@ void MotionStreak::draw()
     if(_nuPoints <= 1)
         return;
     kmGLGetMatrix(KM_GL_MODELVIEW,&_cachedMV);
-    CustomCommand* cmd = CustomCommand::getCommandPool().generateCommand();
-    cmd->init(0,_vertexZ);
-    cmd->func = CC_CALLBACK_0(MotionStreak::onDraw, this);
-    Director::getInstance()->getRenderer()->addCommand(cmd);
+    _customCommand.init(0,_vertexZ);
+    _customCommand.func = CC_CALLBACK_0(MotionStreak::onDraw, this);
+    Director::getInstance()->getRenderer()->addCommand(&_customCommand);
 
 }
 
