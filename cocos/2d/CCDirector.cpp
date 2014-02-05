@@ -55,14 +55,15 @@ THE SOFTWARE.
 #include "kazmath/GL/matrix.h"
 #include "CCProfiling.h"
 #include "platform/CCImage.h"
-#include "CCEGLView.h"
+#include "CCGLView.h"
 #include "CCConfiguration.h"
 #include "CCEventDispatcher.h"
 #include "CCEventCustom.h"
 #include "CCFontFreeType.h"
-#include "CCRenderer.h"
-#include "CCConsole.h"
+#include "renderer/CCRenderer.h"
 #include "renderer/CCFrustum.h"
+#include "CCConsole.h"
+
 /**
  Position of the FPS
  
@@ -129,16 +130,16 @@ bool Director::init(void)
 
     // paused ?
     _paused = false;
-   
+
     // purge ?
     _purgeDirectorInNextLoop = false;
 
-    _winSizeInPoints = Size::ZERO;    
+    _winSizeInPoints = Size::ZERO;
 
     _openGLView = nullptr;
-    
+
     _cullingFrustum = new Frustum();
-    
+
     _contentScaleFactor = 1.0f;
 
     // scheduler
@@ -164,12 +165,9 @@ bool Director::init(void)
     _renderer = new Renderer;
     _console = new Console;
 
-    // create autorelease pool
-    PoolManager::sharedPoolManager()->push();
-
     return true;
 }
-    
+
 Director::~Director(void)
 {
     CCLOGINFO("deallocing Director: %p", this);
@@ -177,7 +175,7 @@ Director::~Director(void)
     CC_SAFE_RELEASE(_FPSLabel);
     CC_SAFE_RELEASE(_SPFLabel);
     CC_SAFE_RELEASE(_drawsLabel);
-    
+
     CC_SAFE_RELEASE(_runningScene);
     CC_SAFE_RELEASE(_notificationNode);
     CC_SAFE_RELEASE(_scheduler);
@@ -192,9 +190,8 @@ Director::~Director(void)
     delete _renderer;
     delete _console;
 
-    // pop the autorelease pool
-    PoolManager::sharedPoolManager()->pop();
-    PoolManager::purgePoolManager();
+    // clean auto release pool
+    PoolManager::destroyInstance();
 
     // delete _lastUpdate
     CC_SAFE_DELETE(_lastUpdate);
@@ -283,17 +280,17 @@ void Director::drawScene()
     }
 
     kmGLPushMatrix();
-    
+
     //construct the frustum
     {
         kmMat4 view;
         kmMat4 projection;
         kmGLGetMatrix(KM_GL_PROJECTION, &projection);
         kmGLGetMatrix(KM_GL_MODELVIEW, &view);
-        
+
         _cullingFrustum->setupFromMatrix(view, projection);
     }
-    
+
     // draw the scene
     if (_runningScene)
     {
@@ -306,7 +303,7 @@ void Director::drawScene()
     {
         _notificationNode->visit();
     }
-    
+
     if (_displayStats)
     {
         showStats();
@@ -324,7 +321,7 @@ void Director::drawScene()
     {
         _openGLView->swapBuffers();
     }
-    
+
     if (_displayStats)
     {
         calculateMPF();
@@ -354,7 +351,7 @@ void Director::calculateDeltaTime()
         _deltaTime = MAX(0, _deltaTime);
     }
 
-#ifdef DEBUG
+#if COCOS2D_DEBUG
     // If we are debugging our code, prevent big delta time
     if (_deltaTime > 0.2f)
     {
@@ -368,7 +365,7 @@ float Director::getDeltaTime() const
 {
 	return _deltaTime;
 }
-void Director::setOpenGLView(EGLView *openGLView)
+void Director::setOpenGLView(GLView *openGLView)
 {
     CCASSERT(openGLView, "opengl view should not be null");
 
@@ -377,24 +374,25 @@ void Director::setOpenGLView(EGLView *openGLView)
 		// Configuration. Gather GPU info
 		Configuration *conf = Configuration::getInstance();
 		conf->gatherGPUInfo();
-		conf->dumpInfo();
+        CCLOG("%s\n",conf->getInfo().c_str());
 
-        // EAGLView is not a Object
-        delete _openGLView; // [openGLView_ release]
+        if(_openGLView)
+            _openGLView->release();
         _openGLView = openGLView;
+        _openGLView->retain();
 
         // set size
         _winSizeInPoints = _openGLView->getDesignResolutionSize();
-        
+
         createStatsLabel();
-        
+
         if (_openGLView)
         {
             setGLDefaultValues();
-        }  
-        
+        }
+
         _renderer->initGLView();
-        
+
         CHECK_GL_ERROR_DEBUG();
 
 //        _touchDispatcher->setDispatchEvents(true);
@@ -480,12 +478,12 @@ void Director::setProjection(Projection projection)
             kmGLMultMatrix(&matrixLookup);
             break;
         }
-            
+
         case Projection::CUSTOM:
             // Projection Delegate is no longer needed
             // since the event "PROJECTION CHANGED" is emitted
             break;
-            
+
         default:
             CCLOG("cocos2d: Director: unrecognized projection");
             break;
@@ -547,10 +545,10 @@ static void GLToClipTransform(kmMat4 *transformOut)
 {
 	kmMat4 projection;
 	kmGLGetMatrix(KM_GL_PROJECTION, &projection);
-	
+
 	kmMat4 modelview;
 	kmGLGetMatrix(KM_GL_MODELVIEW, &modelview);
-	
+
 	kmMat4Multiply(transformOut, &projection, &modelview);
 }
 
@@ -558,19 +556,19 @@ Point Director::convertToGL(const Point& uiPoint)
 {
     kmMat4 transform;
 	GLToClipTransform(&transform);
-	
+
 	kmMat4 transformInv;
 	kmMat4Inverse(&transformInv, &transform);
-	
+
 	// Calculate z=0 using -> transform*[0, 0, 0, 1]/w
 	kmScalar zClip = transform.mat[14]/transform.mat[15];
-	
+
     Size glSize = _openGLView->getDesignResolutionSize();
 	kmVec3 clipCoord = {2.0f*uiPoint.x/glSize.width - 1.0f, 1.0f - 2.0f*uiPoint.y/glSize.height, zClip};
-	
+
 	kmVec3 glCoord;
 	kmVec3TransformCoord(&glCoord, &clipCoord, &transformInv);
-	
+
 	return Point(glCoord.x, glCoord.y);
 }
 
@@ -578,12 +576,12 @@ Point Director::convertToUI(const Point& glPoint)
 {
     kmMat4 transform;
 	GLToClipTransform(&transform);
-    
+
 	kmVec3 clipCoord;
 	// Need to calculate the zero depth from the transform.
 	kmVec3 glCoord = {glPoint.x, glPoint.y, 0.0};
 	kmVec3TransformCoord(&clipCoord, &glCoord, &transform);
-	
+
 	Size glSize = _openGLView->getDesignResolutionSize();
 	return Point(glSize.width*(clipCoord.x*0.5 + 0.5), glSize.height*(-clipCoord.y*0.5 + 0.5));
 }
@@ -604,7 +602,7 @@ Size Director::getVisibleSize() const
     {
         return _openGLView->getVisibleSize();
     }
-    else 
+    else
     {
         return Size::ZERO;
     }
@@ -616,7 +614,7 @@ Point Director::getVisibleOrigin() const
     {
         return _openGLView->getVisibleOrigin();
     }
-    else 
+    else
     {
         return Point::ZERO;
     }
@@ -944,7 +942,8 @@ void Director::createStatsLabel()
      Secondly, the size of this image is 480*320, to display the FPS label with correct size, 
      a factor of design resolution ratio of 480x320 is also needed.
      */
-    float factor = EGLView::getInstance()->getDesignResolutionSize().height / 320.0f;
+    auto glview = Director::getInstance()->getOpenGLView();
+    float factor = glview->getDesignResolutionSize().height / 320.0f;
 
     _FPSLabel = LabelAtlas::create();
     _FPSLabel->retain();
@@ -1048,7 +1047,7 @@ void DisplayLinkDirector::mainLoop()
         drawScene();
      
         // release the objects
-        PoolManager::sharedPoolManager()->pop();        
+        PoolManager::getInstance()->getCurrentPool()->clear();
     }
 }
 
