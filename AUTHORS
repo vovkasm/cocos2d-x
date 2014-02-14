@@ -739,6 +739,10 @@ Developers:
         
     hanjukim
         Fixed a bug that color and opacity settings were not applied when invoking Label::alignText.
+        
+    bagobor
+        Fixed a memory leak in AssetsManager::uncompress.
+        Code format fix and small optimizations in cocostudio/CCActionNode.cpp.
     
 Retired Core Developers:
     WenSheng Yang
