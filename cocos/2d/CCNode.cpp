@@ -77,9 +77,12 @@ static int s_globalOrderOfArrival = 1;
 Node::Node(void)
 : _rotationX(0.0f)
 , _rotationY(0.0f)
+, _rotationZ_X(0.0f)
+, _rotationZ_Y(0.0f)
 , _scaleX(1.0f)
 , _scaleY(1.0f)
-, _vertexZ(0.0f)
+, _scaleZ(1.0f)
+, _positionZ(0.0f)
 , _position(Point::ZERO)
 , _skewX(0.0f)
 , _skewY(0.0f)
@@ -170,7 +173,7 @@ Node::~Node()
     CC_SAFE_DELETE(_componentContainer);
     
 #if CC_USE_PHYSICS
-    CC_SAFE_RELEASE(_physicsBody);
+    setPhysicsBody(nullptr);
 #endif
 }
 
@@ -184,9 +187,12 @@ float Node::getSkewX() const
     return _skewX;
 }
 
-void Node::setSkewX(float newSkewX)
+void Node::setSkewX(float skewX)
 {
-    _skewX = newSkewX;
+    if (_skewX == skewX)
+        return;
+    
+    _skewX = skewX;
     _transformDirty = _inverseDirty = true;
 }
 
@@ -195,10 +201,12 @@ float Node::getSkewY() const
     return _skewY;
 }
 
-void Node::setSkewY(float newSkewY)
+void Node::setSkewY(float skewY)
 {
-    _skewY = newSkewY;
-
+    if (_skewY == skewY)
+        return;
+    
+    _skewY = skewY;
     _transformDirty = _inverseDirty = true;
 }
 
@@ -212,6 +220,9 @@ void Node::_setLocalZOrder(int z)
 
 void Node::setLocalZOrder(int z)
 {
+    if (_localZOrder == z)
+        return;
+    
     _localZOrder = z;
     if (_parent)
     {
@@ -230,61 +241,86 @@ void Node::setGlobalZOrder(float globalZOrder)
     }
 }
 
-/// vertexZ getter
-float Node::getVertexZ() const
-{
-    return _vertexZ;
-}
-
-
-/// vertexZ setter
-void Node::setVertexZ(float zOrder)
-{
-    _vertexZ = zOrder;
-    setGlobalZOrder(zOrder);
-}
-
-
 /// rotation getter
 float Node::getRotation() const
 {
-    CCASSERT(_rotationX == _rotationY, "CCNode#rotation. RotationX != RotationY. Don't know which one to return");
-    return _rotationX;
+    CCASSERT(_rotationZ_X == _rotationZ_Y, "CCNode#rotation. RotationX != RotationY. Don't know which one to return");
+    return _rotationZ_X;
 }
 
 /// rotation setter
-void Node::setRotation(float newRotation)
+void Node::setRotation(float rotation)
 {
-    _rotationX = _rotationY = newRotation;
+    if (_rotationZ_X == rotation)
+        return;
+    
+    _rotationZ_X = _rotationZ_Y = rotation;
     _transformDirty = _inverseDirty = true;
     
 #if CC_USE_PHYSICS
     if (_physicsBody)
     {
-        _physicsBody->setRotation(newRotation);
+        _physicsBody->setRotation(rotation);
     }
 #endif
 }
 
-float Node::getRotationX() const
+float Node::getRotationSkewX() const
 {
-    return _rotationX;
+    return _rotationZ_X;
 }
 
-void Node::setRotationX(float fRotationX)
+void Node::setRotation3D(const Vertex3F& rotation)
 {
-    _rotationX = fRotationX;
+    if (_rotationX == rotation.x &&
+        _rotationY == rotation.y &&
+        _rotationZ_X == rotation.z)
+        return;
+    
+    _transformDirty = _inverseDirty = true;
+
+    _rotationX = rotation.x;
+    _rotationY = rotation.y;
+
+    // rotation Z is decomposed in 2 to simulate Skew for Flash animations
+    _rotationZ_Y = _rotationZ_X = rotation.z;
+
+#if CC_USE_PHYSICS
+    if (_physicsBody)
+    {
+        _physicsBody->setRotation(_rotationZ_X);
+    }
+#endif
+}
+
+Vertex3F Node::getRotation3D() const
+{
+    // rotation Z is decomposed in 2 to simulate Skew for Flash animations
+    CCASSERT(_rotationZ_X == _rotationZ_Y, "_rotationZ_X != _rotationZ_Y");
+
+    return Vertex3F(_rotationX,_rotationY,_rotationZ_X);
+}
+
+void Node::setRotationSkewX(float rotationX)
+{
+    if (_rotationZ_X == rotationX)
+        return;
+    
+    _rotationZ_X = rotationX;
     _transformDirty = _inverseDirty = true;
 }
 
-float Node::getRotationY() const
+float Node::getRotationSkewY() const
 {
-    return _rotationY;
+    return _rotationZ_Y;
 }
 
-void Node::setRotationY(float rotationY)
+void Node::setRotationSkewY(float rotationY)
 {
-    _rotationY = rotationY;
+    if (_rotationZ_Y == rotationY)
+        return;
+    
+    _rotationZ_Y = rotationY;
     _transformDirty = _inverseDirty = true;
 }
 
@@ -298,6 +334,9 @@ float Node::getScale(void) const
 /// scale setter
 void Node::setScale(float scale)
 {
+    if (_scaleX == scale)
+        return;
+    
     _scaleX = _scaleY = scale;
     _transformDirty = _inverseDirty = true;
 }
@@ -311,15 +350,21 @@ float Node::getScaleX() const
 /// scale setter
 void Node::setScale(float scaleX,float scaleY)
 {
+    if (_scaleX == scaleX && _scaleY == scaleY)
+        return;
+    
     _scaleX = scaleX;
     _scaleY = scaleY;
     _transformDirty = _inverseDirty = true;
 }
 
 /// scaleX setter
-void Node::setScaleX(float newScaleX)
+void Node::setScaleX(float scaleX)
 {
-    _scaleX = newScaleX;
+    if (_scaleX == scaleX)
+        return;
+    
+    _scaleX = scaleX;
     _transformDirty = _inverseDirty = true;
 }
 
@@ -330,11 +375,31 @@ float Node::getScaleY() const
 }
 
 /// scaleY setter
-void Node::setScaleY(float newScaleY)
+void Node::setScaleZ(float scaleZ)
 {
-    _scaleY = newScaleY;
+    if (_scaleZ == scaleZ)
+        return;
+    
+    _scaleZ = scaleZ;
     _transformDirty = _inverseDirty = true;
 }
+
+/// scaleY getter
+float Node::getScaleZ() const
+{
+    return _scaleZ;
+}
+
+/// scaleY setter
+void Node::setScaleY(float scaleY)
+{
+    if (_scaleY == scaleY)
+        return;
+    
+    _scaleY = scaleY;
+    _transformDirty = _inverseDirty = true;
+}
+
 
 /// position getter
 const Point& Node::getPosition() const
@@ -343,15 +408,18 @@ const Point& Node::getPosition() const
 }
 
 /// position setter
-void Node::setPosition(const Point& newPosition)
+void Node::setPosition(const Point& position)
 {
-    _position = newPosition;
+    if (_position.equals(position))
+        return;
+    
+    _position = position;
     _transformDirty = _inverseDirty = true;
     
 #if CC_USE_PHYSICS
     if (_physicsBody)
     {
-        _physicsBody->setPosition(newPosition);
+        _physicsBody->setPosition(position);
     }
 #endif
 }
@@ -367,14 +435,24 @@ void Node::setPosition(float x, float y)
     setPosition(Point(x, y));
 }
 
+void Node::setPosition3D(const Vertex3F& position)
+{
+    _positionZ = position.z;
+    setPosition(Point(position.x, position.y));
+}
+
+Vertex3F Node::getPosition3D() const
+{
+    Vertex3F ret;
+    ret.x = _position.x;
+    ret.y = _position.y;
+    ret.z = _positionZ;
+    return ret;
+}
+
 float Node::getPositionX() const
 {
     return _position.x;
-}
-
-float Node::getPositionY() const
-{
-    return  _position.y;
 }
 
 void Node::setPositionX(float x)
@@ -382,9 +460,48 @@ void Node::setPositionX(float x)
     setPosition(Point(x, _position.y));
 }
 
+float Node::getPositionY() const
+{
+    return  _position.y;
+}
+
 void Node::setPositionY(float y)
 {
     setPosition(Point(_position.x, y));
+}
+
+float Node::getPositionZ() const
+{
+    return _positionZ;
+}
+
+void Node::setPositionZ(float positionZ)
+{
+    if (_positionZ == positionZ)
+        return;
+    
+    _transformDirty = _inverseDirty = true;
+
+    _positionZ = positionZ;
+
+    // XXX BUG
+    // Global Z Order should based on the modelViewTransform
+    setGlobalZOrder(positionZ);
+}
+
+void Node::setNormalizedPosition(const cocos2d::Point &position)
+{
+    _normalizedPosition = position;
+    Size s = Director::getInstance()->getVisibleSize();
+    Point p;
+    p.x = s.width * position.x;
+    p.y = s.height * position.y;
+    setPosition(p);
+}
+
+const Point& Node::getNormalizedPosition() const
+{
+    return _normalizedPosition;
 }
 
 ssize_t Node::getChildrenCount() const
@@ -516,6 +633,7 @@ Scene* Node::getScene()
 {
     if(!_parent)
         return nullptr;
+    
     return _parent->getScene();
 }
 
@@ -844,10 +962,6 @@ void Node::transformAncestors()
 
 void Node::transform()
 {
-#if CC_USE_PHYSICS
-    updatePhysicsTransform();
-#endif
-
     kmMat4 transfrom4x4 = this->getNodeToParentTransform();
 
     kmGLMultMatrix( &transfrom4x4 );
@@ -1139,6 +1253,7 @@ const kmMat4& Node::getNodeToParentTransform() const
         // Translate values
         float x = _position.x;
         float y = _position.y;
+        float z = _positionZ;
 
         if (_ignoreAnchorPointForPosition)
         {
@@ -1150,10 +1265,10 @@ const kmMat4& Node::getNodeToParentTransform() const
 		// Change rotation code to handle X and Y
 		// If we skew with the exact same value for both x and y then we're simply just rotating
         float cx = 1, sx = 0, cy = 1, sy = 0;
-        if (_rotationX || _rotationY)
+        if (_rotationZ_X || _rotationZ_Y)
         {
-            float radiansX = -CC_DEGREES_TO_RADIANS(_rotationX);
-            float radiansY = -CC_DEGREES_TO_RADIANS(_rotationY);
+            float radiansX = -CC_DEGREES_TO_RADIANS(_rotationZ_X);
+            float radiansY = -CC_DEGREES_TO_RADIANS(_rotationZ_Y);
             cx = cosf(radiansX);
             sx = sinf(radiansX);
             cy = cosf(radiansY);
@@ -1175,12 +1290,27 @@ const kmMat4& Node::getNodeToParentTransform() const
 
         // Build Transform Matrix
         // Adjusted transform calculation for rotational skew
-        kmScalar mat[] = { cy * _scaleX, sy * _scaleX, 0,  0,
-                      -sx * _scaleY, cx * _scaleY, 0,  0,
-                        0,  0,  1,  0,
-                        x,  y,  0,  1 };
+        kmScalar mat[] = {
+                        cy * _scaleX,   sy * _scaleX,   0,          0,
+                        -sx * _scaleY,  cx * _scaleY,   0,          0,
+                        0,              0,              _scaleZ,    0,
+                        x,              y,              z,          1 };
         
         kmMat4Fill(&_transform, mat);
+
+        // XXX
+        // FIX ME: Expensive operation.
+        // FIX ME: It should be done together with the rotationZ
+        if(_rotationY) {
+            kmMat4 rotY;
+            kmMat4RotationY(&rotY,CC_DEGREES_TO_RADIANS(_rotationY));
+            kmMat4Multiply(&_transform, &_transform, &rotY);
+        }
+        if(_rotationX) {
+            kmMat4 rotX;
+            kmMat4RotationX(&rotX,CC_DEGREES_TO_RADIANS(_rotationX));
+            kmMat4Multiply(&_transform, &_transform, &rotX);
+        }
 
         // XXX: Try to inline skew
         // If skew is needed, apply skew and then anchor point
@@ -1202,9 +1332,6 @@ const kmMat4& Node::getNodeToParentTransform() const
                 _transform.mat[13] += _transform.mat[1] * -_anchorPointInPoints.x + _transform.mat[5] * -_anchorPointInPoints.y;
             }
         }
-
-        // vertex Z
-        _transform.mat[14] = _vertexZ;
 
         if (_useAdditionalTransform)
         {
@@ -1342,21 +1469,6 @@ Point Node::convertTouchToNodeSpaceAR(Touch *touch) const
     return this->convertToNodeSpaceAR(point);
 }
 
-#if CC_USE_PHYSICS
-bool Node::updatePhysicsTransform()
-{
-    if (_physicsBody != nullptr && _physicsBody->getWorld() != nullptr && !_physicsBody->isResting())
-    {
-        _position = _physicsBody->getPosition();
-        _rotationX = _rotationY = _physicsBody->getRotation();
-        _transformDirty = _inverseDirty = true;
-        return true;
-    }
-    
-    return false;
-}
-#endif
-
 void Node::updateTransform()
 {
     // Recursively iterate over children
@@ -1395,17 +1507,31 @@ void Node::removeAllComponents()
 #if CC_USE_PHYSICS
 void Node::setPhysicsBody(PhysicsBody* body)
 {
+    if (body != nullptr)
+    {
+        body->_node = this;
+        body->retain();
+    }
+    
     if (_physicsBody != nullptr)
     {
+        PhysicsWorld* world = _physicsBody->getWorld();
+        _physicsBody->removeFromWorld();
         _physicsBody->_node = nullptr;
         _physicsBody->release();
+        
+        if (world != nullptr && body != nullptr)
+        {
+            world->addBody(body);
+        }
     }
     
     _physicsBody = body;
-    _physicsBody->_node = this;
-    _physicsBody->retain();
-    _physicsBody->setPosition(getPosition());
-    _physicsBody->setRotation(getRotation());
+    if (body != nullptr)
+    {
+        _physicsBody->setPosition(getPosition());
+        _physicsBody->setRotation(getRotation());
+    }
 }
 
 PhysicsBody* Node::getPhysicsBody() const

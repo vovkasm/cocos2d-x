@@ -610,9 +610,10 @@ Developers:
         Makes Colors are now comparable and explicit convertible
         
     bmanGH
-        Use gl caching functions in TexturePVR::createGLTexture()
+        Used gl caching functions in TexturePVR::createGLTexture()
         Configuration of VAO in runtime
-        Add setUniformLocationWithMatrix2fv, setUniformLocationWithMatrix3fv mothed into GLProgram class
+        Added setUniformLocationWithMatrix2fv, setUniformLocationWithMatrix3fv mothed into GLProgram class
+        Fixed a bug that object which isn't in Vector would also be released when invoking Vector::eraseObject.
         
     metadao
         make create_project.py more pythonic and fix some typoes
@@ -762,7 +763,13 @@ Developers:
         s3tc compressed textures with no mipmaps fail to be loaded.
         
     floatinghotpot
-        Fix a bug that no callback is invoked when websocket connection fails
+        Fixed a bug that no callback is invoked when websocket connection fails
+        
+    Linghui
+        Updated README of template: fix wrong platform java path.
+        
+    seemk
+        Fixed crash if invoking Director::end() on WINDOWS.
     
 Retired Core Developers:
     WenSheng Yang
