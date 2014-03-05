@@ -24,7 +24,7 @@ Layer* createActionManagerLayer(int nIndex)
         case 0: return new CrashTest();
         case 1: return new LogicTest();
         case 2: return new PauseTest();
-        case 3: return new RemoveTest();
+        case 3: return new StopActionTest();
         case 4: return new ResumeTest();
     }
 
@@ -79,9 +79,12 @@ ActionManagerTest::~ActionManagerTest(void)
 
 std::string ActionManagerTest::title() const
 {
+    return "ActionManager Test";
+}
+std::string ActionManagerTest::subtitle() const
+{
     return "No title";
 }
-
 void ActionManagerTest::restartCallback(Ref* sender)
 {
     auto s = new ActionManagerTestScene();
@@ -144,7 +147,7 @@ void CrashTest::removeThis()
     nextCallback(this);
 }
 
-std::string CrashTest::title() const
+std::string CrashTest::subtitle() const
 {
     return "Test 1. Should not crash";
 }
@@ -175,7 +178,7 @@ void LogicTest::bugMe(Node* node)
     node->runAction(ScaleTo::create(2, 2));
 }
 
-std::string LogicTest::title() const
+std::string LogicTest::subtitle() const
 {
     return "Logic test"; 
 }
@@ -223,7 +226,7 @@ void PauseTest::unpause(float dt)
     director->getActionManager()->resumeTarget(node);
 }
 
-std::string PauseTest::title() const
+std::string PauseTest::subtitle() const
 {
     return "Pause Test";
 }
@@ -233,7 +236,7 @@ std::string PauseTest::title() const
 // RemoveTest
 //
 //------------------------------------------------------------------
-void RemoveTest::onEnter()
+void StopActionTest::onEnter()
 {
     ActionManagerTest::onEnter();
 
@@ -242,7 +245,7 @@ void RemoveTest::onEnter()
     l->setPosition( Point(VisibleRect::center().x, VisibleRect::top().y - 75) );
 
     auto pMove = MoveBy::create(2, Point(200, 0));
-    auto pCallback = CallFunc::create(CC_CALLBACK_0(RemoveTest::stopAction,this));
+    auto pCallback = CallFunc::create(CC_CALLBACK_0(StopActionTest::stopAction,this));
     auto pSequence = Sequence::create(pMove, pCallback, NULL);
     pSequence->setTag(kTagSequence);
 
@@ -253,15 +256,15 @@ void RemoveTest::onEnter()
     pChild->runAction(pSequence);
 }
 
-void RemoveTest::stopAction()
+void StopActionTest::stopAction()
 {
     auto sprite = getChildByTag(kTagGrossini);
     sprite->stopActionByTag(kTagSequence);
 }
 
-std::string RemoveTest::title() const
+std::string StopActionTest::subtitle() const
 {
-    return "Remove Test";
+    return "Stop Action Test";
 }
 
 //------------------------------------------------------------------
@@ -269,7 +272,7 @@ std::string RemoveTest::title() const
 // ResumeTest
 //
 //------------------------------------------------------------------
-std::string ResumeTest::title() const
+std::string ResumeTest::subtitle() const
 {
     return "Resume Test";
 }
