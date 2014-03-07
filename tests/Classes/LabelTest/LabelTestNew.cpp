@@ -75,7 +75,8 @@ static std::function<Layer*()> createFunctions[] =
     CL(LabelCharMapTest),
     CL(LabelCharMapColorTest),
     CL(LabelCrashTest),
-    CL(LabelTTFOldNew)
+    CL(LabelTTFOldNew),
+    CL(LabelAlignmentTest)
 };
 
 #define MAX_LAYER    (sizeof(createFunctions) / sizeof(createFunctions[0]))
@@ -315,22 +316,21 @@ LabelFNTSpriteActions::LabelFNTSpriteActions()
 void LabelFNTSpriteActions::draw(Renderer *renderer, const kmMat4 &transform, bool transformUpdated)
 {
     _renderCmd.init(_globalZOrder);
-    _renderCmd.func = CC_CALLBACK_0(LabelFNTSpriteActions::onDraw, this);
+    _renderCmd.func = CC_CALLBACK_0(LabelFNTSpriteActions::onDraw, this, transform, transformUpdated);
     renderer->addCommand(&_renderCmd);
 
 }
 
-void LabelFNTSpriteActions::onDraw()
+void LabelFNTSpriteActions::onDraw(const kmMat4 &transform, bool transformUpdated)
 {
-    kmMat4 oldMat;
-    kmGLGetMatrix(KM_GL_MODELVIEW, &oldMat);
-    kmGLLoadMatrix(&_modelViewTransform);
+    kmGLPushMatrix();
+    kmGLLoadMatrix(&transform);
     
     auto s = Director::getInstance()->getWinSize();
     DrawPrimitives::drawLine( Point(0, s.height/2), Point(s.width, s.height/2) );
     DrawPrimitives::drawLine( Point(s.width/2, 0), Point(s.width/2, s.height) );
     
-    kmGLLoadMatrix(&oldMat);
+    kmGLPopMatrix();
 }
 
 void LabelFNTSpriteActions::step(float dt)
@@ -913,7 +913,7 @@ LabelFNTBounds::LabelFNTBounds()
     addChild(layer, -10);
     
     // LabelBMFont
-    label1 = Label::createWithBMFont("fonts/boundsTestFont.fnt", "Testing Glyph Designer", TextHAlignment::CENTER, s.width);
+    label1 = Label::createWithBMFont("fonts/boundsTestFont.fnt", "Testing Glyph Designer", TextHAlignment::CENTER,s.width);
     label1->setAnchorPoint(Point::ANCHOR_MIDDLE);
     addChild(label1);
     label1->setPosition(Point(s.width/2, s.height/2));
@@ -932,15 +932,14 @@ std::string LabelFNTBounds::subtitle() const
 void LabelFNTBounds::draw(Renderer *renderer, const kmMat4 &transform, bool transformUpdated)
 {
     _renderCmd.init(_globalZOrder);
-    _renderCmd.func = CC_CALLBACK_0(LabelFNTBounds::onDraw, this);
+    _renderCmd.func = CC_CALLBACK_0(LabelFNTBounds::onDraw, this, transform, transformUpdated);
     renderer->addCommand(&_renderCmd);
 }
 
-void LabelFNTBounds::onDraw()
+void LabelFNTBounds::onDraw(const kmMat4 &transform, bool transformUpdated)
 {
-    kmMat4 oldMat;
-    kmGLGetMatrix(KM_GL_MODELVIEW, &oldMat);
-    kmGLLoadMatrix(&_modelViewTransform);
+    kmGLPushMatrix();
+    kmGLLoadMatrix(&transform);
     
     auto labelSize = label1->getContentSize();
     auto origin    = Director::getInstance()->getWinSize();
@@ -957,7 +956,7 @@ void LabelFNTBounds::onDraw()
     };
     DrawPrimitives::drawPoly(vertices, 4, true);
     
-    kmGLLoadMatrix(&oldMat);
+    kmGLPopMatrix();
 }
 
 LabelTTFLongLineWrapping::LabelTTFLongLineWrapping()
@@ -1554,12 +1553,11 @@ LabelTTFOldNew::LabelTTFOldNew()
     label2->setPosition(Point(s.width/2, delta * 2));
 }
 
-void LabelTTFOldNew::onDraw()
+void LabelTTFOldNew::onDraw(const kmMat4 &transform, bool transformUpdated)
 {
-    kmMat4 oldMat;
-    kmGLGetMatrix(KM_GL_MODELVIEW, &oldMat);
-    kmGLLoadMatrix(&_modelViewTransform);
-    
+    kmGLPushMatrix();
+    kmGLLoadMatrix(&transform);
+
     auto label1 = (Label*)getChildByTag(kTagBitmapAtlas1);
     auto labelSize = label1->getContentSize();
     auto origin    = Director::getInstance()->getWinSize();
@@ -1594,13 +1592,13 @@ void LabelTTFOldNew::onDraw()
     DrawPrimitives::setDrawColor4B(Color4B::WHITE.r,Color4B::WHITE.g,Color4B::WHITE.b,Color4B::WHITE.a);
     DrawPrimitives::drawPoly(vertices2, 4, true);
     
-    kmGLLoadMatrix(&oldMat);
+    kmGLPopMatrix();
 }
 
 void LabelTTFOldNew::draw(Renderer *renderer, const kmMat4 &transform, bool transformUpdated)
 {
     _renderCmd.init(_globalZOrder);
-    _renderCmd.func = CC_CALLBACK_0(LabelTTFOldNew::onDraw, this);
+    _renderCmd.func = CC_CALLBACK_0(LabelTTFOldNew::onDraw, this, transform, transformUpdated);
     renderer->addCommand(&_renderCmd);
 }
 
@@ -1612,4 +1610,137 @@ std::string LabelTTFOldNew::title() const
 std::string LabelTTFOldNew::subtitle() const
 {
     return "Comparison between old(red) and new(white) TTF label";
+}
+
+LabelAlignmentTest::LabelAlignmentTest()
+{
+    auto blockSize = Size(200, 160);
+    auto s = Director::getInstance()->getWinSize();
+
+    auto pos = Point((s.width - blockSize.width) / 2, (s.height - blockSize.height) / 2);
+    auto colorLayer = LayerColor::create(Color4B(100, 100, 100, 255), blockSize.width, blockSize.height);
+    colorLayer->setAnchorPoint(Point::ANCHOR_BOTTOM_LEFT);
+    colorLayer->setPosition(pos);
+
+    this->addChild(colorLayer);
+
+    MenuItemFont::setFontSize(30);
+    auto menu = Menu::create(
+        MenuItemFont::create("Left", CC_CALLBACK_1(LabelAlignmentTest::setAlignmentLeft, this)),
+        MenuItemFont::create("Center", CC_CALLBACK_1(LabelAlignmentTest::setAlignmentCenter, this)),
+        MenuItemFont::create("Right", CC_CALLBACK_1(LabelAlignmentTest::setAlignmentRight, this)),
+        NULL);
+    menu->alignItemsVerticallyWithPadding(4);
+    menu->setPosition(Point(50, s.height / 2 - 20));
+    this->addChild(menu);
+
+    menu = Menu::create(
+        MenuItemFont::create("Top", CC_CALLBACK_1(LabelAlignmentTest::setAlignmentTop, this)),
+        MenuItemFont::create("Middle", CC_CALLBACK_1(LabelAlignmentTest::setAlignmentMiddle, this)),
+        MenuItemFont::create("Bottom", CC_CALLBACK_1(LabelAlignmentTest::setAlignmentBottom, this)),
+        NULL);
+    menu->alignItemsVerticallyWithPadding(4);
+    menu->setPosition(Point(s.width - 50, s.height / 2 - 20));
+    this->addChild(menu);
+
+    _horizAlign = TextHAlignment::LEFT;
+    _vertAlign = TextVAlignment::TOP;
+
+    TTFConfig ttfConfig("fonts/arial.ttf", 64);
+    _label = Label::create();
+    _label->setDimensions(200,160);
+    _label->setAlignment(_horizAlign,_vertAlign);
+    _label->setTTFConfig(ttfConfig);
+    _label->setString(getCurrentAlignment());
+    _label->setAnchorPoint(Point::ANCHOR_BOTTOM_LEFT);
+    _label->setPosition(pos);
+    addChild(_label);
+
+}
+
+LabelAlignmentTest::~LabelAlignmentTest()
+{
+    
+}
+
+void LabelAlignmentTest::setAlignmentLeft(Ref* sender)
+{
+    _horizAlign = TextHAlignment::LEFT;
+    _label->setHorizontalAlignment(_horizAlign,false);
+    _label->setString(getCurrentAlignment());
+}
+
+void LabelAlignmentTest::setAlignmentCenter(Ref* sender)
+{
+    _horizAlign = TextHAlignment::CENTER;
+    _label->setHorizontalAlignment(_horizAlign,false);
+    _label->setString(getCurrentAlignment()); 
+}
+
+void LabelAlignmentTest::setAlignmentRight(Ref* sender)
+{
+    _horizAlign = TextHAlignment::RIGHT;
+    _label->setHorizontalAlignment(_horizAlign,false);
+    _label->setString(getCurrentAlignment());
+}
+
+void LabelAlignmentTest::setAlignmentTop(Ref* sender)
+{
+    _vertAlign = TextVAlignment::TOP;
+    _label->setVerticalAlignment(_vertAlign,false);
+    _label->setString(getCurrentAlignment());
+}
+
+void LabelAlignmentTest::setAlignmentMiddle(Ref* sender)
+{
+    _vertAlign = TextVAlignment::CENTER;
+    _label->setVerticalAlignment(_vertAlign,false);
+    _label->setString(getCurrentAlignment());
+}
+
+void LabelAlignmentTest::setAlignmentBottom(Ref* sender)
+{
+    _vertAlign = TextVAlignment::BOTTOM;
+    _label->setVerticalAlignment(_vertAlign,false);
+    _label->setString(getCurrentAlignment());
+}
+
+const char* LabelAlignmentTest::getCurrentAlignment()
+{
+    const char* vertical = NULL;
+    const char* horizontal = NULL;
+    switch (_vertAlign) {
+    case TextVAlignment::TOP:
+        vertical = "Top";
+        break;
+    case TextVAlignment::CENTER:
+        vertical = "Middle";
+        break;
+    case TextVAlignment::BOTTOM:
+        vertical = "Bottom";
+        break;
+    }
+    switch (_horizAlign) {
+    case TextHAlignment::LEFT:
+        horizontal = "Left";
+        break;
+    case TextHAlignment::CENTER:
+        horizontal = "Center";
+        break;
+    case TextHAlignment::RIGHT:
+        horizontal = "Right";
+        break;
+    }
+
+    return String::createWithFormat("Alignment %s %s", vertical, horizontal)->getCString();
+}
+
+std::string LabelAlignmentTest::title() const
+{
+    return "Testing New Label";
+}
+
+std::string LabelAlignmentTest::subtitle() const
+{
+    return "Select the buttons on the sides to change alignment";
 }

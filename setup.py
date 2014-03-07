@@ -33,11 +33,11 @@ On Max OS X, when start a shell, it will read these files and execute commands i
 
 And it will read only one of them. So we will add environment variable in the same sequence.
 Which means that
-* add environment variable into ~/.bash_profile when exists
-* add environment variable into ~/.bash_login when exits and ~/.bash_profile not exits
-* add environment variable into ~/.profile when exits and ~/.bash_profile & ~/.bash_login not exist
+* add environment variables into ~/.bash_profile if it exists
+* otherwise it will the add environment variables into ~/.bash_login if it exists
+* otherwise it will the add environment variables into ~/.profile if it exists
 
-Will create ~/.bash_profile when none of them exist, and add environment variable into it.
+Will create ~/.bash_profile when none of them exist, and add environment variables into it.
 
 '''
 
@@ -48,224 +48,325 @@ from optparse import OptionParser
 
 COCOS_CONSOLE_ROOT = 'COCOS_CONSOLE_ROOT'
 NDK_ROOT = 'NDK_ROOT'
+ANDROID_SDK_ROOT = 'ANDROID_SDK_ROOT'
 
 
-class SetEnvVar:
+class SetEnvVar(object):
+    def __init__(self, ndk=None, android_sdk=None):
+        self.current_absolute_path = os.path.dirname(os.path.realpath(__file__))
+        self.android_sdk_root = android_sdk
+        self.file_used_for_setup = ''
 
-	current_absolute_path = os.path.dirname(os.path.realpath(__file__))
-	ndk_root = None
-	# whether the value of "ndk_root" is passed or not
-	ndk_root_passed = False 
-	file_to_write_environment = None
+    def _isWindows(self):
+        return sys.platform == 'win32'
 
-	@staticmethod
-	def _isWindows():
-		return sys.platform == 'win32'
+    def _isLinux(self):
+        return sys.platform.startswith('linux')
 
-	@staticmethod
-	def _isLinux():
-		return sys.platform.startswith('linux')
+    def _get_filepath_for_setup(self):
 
-	# modify register table to add an environment variable on windows
-	# TODO: test in on windows
-	@staticmethod
-	def _set_environment_variable_win32(key, value):
+        home = os.path.expanduser('~')
+        if os.path.exists(os.path.join(home, '.bash_profile')):
+            file_to_write = os.path.join(home, '.bash_profile')
+        elif os.path.exists(os.path.join(home, '.bash_login')):
+            file_to_write = os.path.join(home, '.bash_login')
+        elif os.path.exists(os.path.join(home, '.profile')):
+            file_to_write = os.path.join(home, '.profile')
+        else:
+            file_to_write = os.path.join(home, '.bash_profile')
+            file = open(file_to_write, 'w')
+            file.close()
 
-		import _winreg
+        return file_to_write
 
-		env = _winreg.OpenKeyEx(_winreg._winreg.HKEY_LOCAL_MACHINE,\
-			                    r'SYSTEM\ControlSet001\Control\Session Manager\Environment',\
-			                    0,
-			                    _winreg.KEY_SET_VALUE|_winreg.KEY_READ)
-		_winreg.SetValueEx(env, key, 0, _winreg.REG_SZ, value)
+    def _update_system_variable(self, origin_content, target_content):
 
-	@staticmethod
-	def _set_environment_variable_unix(key, value):
+        is_updated = False
+        file = open(self.file_used_for_setup, 'a')
+        for line in fileinput.input(file_to_write, inplace=1):
+            if line.startswith(origin_content):
+                line = target_content
+                if_undated = True
+            sys.stdout.write(line)
 
-		home = os.path.expanduser('~')
-		if os.path.exists(os.path.join(home, '.bash_profile')):
-			file_to_write = os.path.join(home, '.bash_profile')
-		elif os.path.exists(os.path.join(home, '.bash_login')):
-			file_to_write = os.path.join(home, '.bash_login')
-		elif os.path.exists(os.path.join(home, '.profile')):
-			file_to_write = os.path.join(home, '.profile')
-		else:
-			file_to_write = os.path.join(home, '.bash_profile')
+        file.close()
+        return is_updated
 
-		SetEnvVar.file_to_write_environment = file_to_write
+    def _find_string_in_file(self, string, file_path):
+        with open(file_path) as f:
+            for line in f:
+                if line.startswith(string):
+                    return True
+        return False
 
-		file = open(file_to_write, 'a')
-		if SetEnvVar.ndk_root_passed and SetEnvVar._find_string_in_file('export '.join(key), file_to_write):
-			# if ndk_root is passed and "ndk_root" is set yet, replace existing string in the file
-			for line in fileinput.input(file_to_write, inplace=1):
-				if line.startswith('export '.join(key)):
-					line = 'export %s=%s' % (key, value)
-				sys.stdout.write(line)
-		else:
-			file.write('export %s=%s\n' % (key, value))
-			file.write('export PATH=$%s:$PATH\n' % key)
-			file.close()
+    # modify registry table to add an environment variable on windows
+    def _set_environment_variable_win32(self, key, value):
+
+        import _winreg
+        try:
+            env = None
+            env = _winreg.OpenKeyEx(_winreg.HKEY_CURRENT_USER,
+                                'Environment',
+                                0,
+                                _winreg.KEY_SET_VALUE | _winreg.KEY_READ)
+            _winreg.SetValueEx(env, key, 0, _winreg.REG_SZ, value)
+            _winreg.CloseKey(env)
+        except Exception:
+            if env:
+                _winreg.CloseKey(env)
+            print 'Warning: Could not add "%s" into registry' % key
+            return False
+        return True
+
+    def _set_environment_variable_unix(self, key, value):
+
+        file = open(self.file_used_for_setup, 'a')
+        file.write('export %s=%s\n' % (key, value))
+        file.write('export PATH=$%s:$PATH\n' % key)
+        if key == ANDROID_SDK_ROOT:
+            file.write('export PATH=$%s/sdk/tools:$%s/sdk/platform-tools:$PATH\n' % (key, key))
+        file.close()
+        return True
+
+    def _set_environment_variable(self, key, value):
+
+        ret = False
+        if self._isWindows():
+            ret = self._set_environment_variable_win32(key, value)
+        else:
+            ret = self._set_environment_variable_unix(key, value)
+        return ret
+
+    def _find_environment_variable(self, var):
+        try:
+            os.environ[var]
+            return True
+        except Exception:
+            if not self._isWindows():
+                string_to_search = 'export %s' % var
+                home = os.path.expanduser('~')
+
+                # search it in ~/.bash_profile
+                path = os.path.join(home, '.bash_profile')
+                if os.path.exists(path):
+                    if self._find_string_in_file(string_to_search, path):
+                        self.file_used_for_setup = path
+                        return True
+
+                # search it in ~/.bash_login
+                path = os.path.join(home, '.bash_login')
+                if os.path.exists(path):
+                    if self._find_string_in_file(string_to_search, path):
+                        self.file_used_for_setup = path
+                        return True
+
+                # search it in ~/.profile
+                path = os.path.join(home, '.profile')
+                if os.path.exists(path):
+                    if self._find_string_in_file(string_to_search, path):
+                        self.file_used_for_setup = path
+                        return True
+            else:
+                import _winreg
+                try:
+                    env = None
+                    env = _winreg.OpenKeyEx(_winreg.HKEY_CURRENT_USER,
+                                'Environment',
+                                0,
+                                _winreg.KEY_READ)
+
+                    _winreg.QueryValueEx(env, var)
+                    _winreg.CloseKey(env)
+                    return True
+                except Exception:
+                    if env:
+                        _winreg.CloseKey(env)
+                    return False
+
+    def _get_input_value(self, sys_var):
+
+        return raw_input('\tPlease enter its path (or press Enter to skip): ')
+
+#         # python on linux doesn't include Tkinter model, so let user input in terminal
+#         if self._isLinux():
+#             input_value = raw_input('Couldn\'t find the "%s" envrironment variable. Please enter it: ' % sys_var)        
+#         else:
+
+#             # pop up a window to let user select path for ndk root
+#             import Tkinter
+#             import tkFileDialog
+
+#             self.tmp_input_value = None
+
+#             root = Tkinter.Tk()
+
+#             if sys_var == NDK_ROOT:
+#                 root.wm_title('Set NDK_ROOT')
+#             else:
+#                 root.wm_title('Set ANDROID_SDK_ROOT')
+
+#             def callback():
+#                 self.tmp_input_value = tkFileDialog.askdirectory()
+#                 root.destroy()
+
+#             if sys_var == NDK_ROOT:
+#                 label_content = 'Select path for Android NDK:'
+#                 label_help = """
+# The Android NDK is needed to develop games for Android. 
+# For further information, go to:
+# http://developer.android.com/tools/sdk/ndk/index.html.
+
+# You can safely skip this step now. You can set the NDK_ROOT later.
+#                 """
+
+#             if sys_var == ANDROID_SDK_ROOT:
+#                 label_content = 'Select path for Android SDK'
+#                 label_help = """
+# The Android SDK is needed to develop games for Android. 
+# For further information, go to:
+# https://developer.android.com/tools/sdk/ndk/index.html. 
+
+# You can safely skip this step now. You can set the ANDROID_SDK_ROOT later.
+#                 """
+
+#             Tkinter.Label(root, text=label_help).pack()
+#             Tkinter.Button(root, text=label_content, command=callback).pack()
+#             self._center(root)
+#             root.mainloop()
+
+#             input_value = self.tmp_input_value
+#             self.tmp_input_value = None
+       
+#         return input_value
+
+#     # display a window in center and put it on top
+#     def _center(self, win):
+#         win.update_idletasks()
+#         width = win.winfo_width()
+#         height = win.winfo_height()
+#         x = (win.winfo_screenwidth() / 2) - (width / 2)
+#         y = (win.winfo_screenheight() / 2) - (height / 2)
+#         win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
+#         win.wm_attributes('-topmost', 1)
+
+    def _is_ndk_root_valid(self, ndk_root):
+        if not ndk_root:
+            return False
+
+        ndk_build_path = os.path.join(ndk_root, 'ndk-build')
+        if os.path.isfile(ndk_build_path):
+            return True
+        else:
+            return False
+
+    def _is_android_sdk_root_valid(self, android_sdk_root):
+        if not android_sdk_root:
+            return False
+
+        android_path = os.path.join(android_sdk_root, 'sdk/tools/android')
+        if os.path.isfile(android_path):
+            return True
+        else:
+            return False
+
+    def set_console_root(self):
+
+    	print ""
+        print '-> Adding COCOS2D_CONSOLE_ROOT environment variable...',
+        if not self._find_environment_variable(COCOS_CONSOLE_ROOT):
+            cocos_consle_root = os.path.join(self.current_absolute_path, 'tools/cocos2d-console/bin')
+            if self._set_environment_variable(COCOS_CONSOLE_ROOT, cocos_consle_root):
+                print 'OK'
+                print '  -> Added: %s = %s' % (COCOS_CONSOLE_ROOT, cocos_consle_root)
+                return True
+        else:
+            print 'ALREADY ADDED'
+            return False
 
 
-	@staticmethod
-	def _set_environment_variable(key, value):
+    def set_environment_variables(self, ndk_root, android_sdk_root):
 
-		if SetEnvVar._isWindows():
-			_set_environment_variable_win32(key, value)
-		else:
-			SetEnvVar._set_environment_variable_unix(key, value)
+        print '\nSetting up cocos2d-x...'
 
-	@staticmethod
-	def _find_string_in_file(string, file_path):
-		with open(file_path) as f:
-			for line in f:
-				if line.startswith(string):
-					return True
-		return False
+        self.file_used_for_setup = self._get_filepath_for_setup()
+        
+        console_added = self.set_console_root()
 
+        #
+        # NDK_ROOT
+        #
+        print ""
+        print '-> Looking for NDK_ROOT envrironment variable...',
 
-	@staticmethod
-	def _find_environment_variable(var):
-		
-		try:
-			result = os.environ[var]
-			if result:
-				return True
-			else:
-				return False
-		except Exception:
-			string_to_search = 'export %s' % var 
-			home = os.path.expanduser('~')
+        ndk_root_added = False
+        ndk_root_found = self._find_environment_variable(NDK_ROOT)
 
-			# find it in ~/.bash_profile
-			if os.path.exists(os.path.join(home, '.bash_profile')):
-				if SetEnvVar._find_string_in_file(string_to_search, os.path.join(home, '.bash_profile')):
-					return True
+        if not ndk_root and not ndk_root_found:
+            print "NOT FOUND"
+            ndk_root = self._get_input_value(NDK_ROOT)
 
-			# find it in ~/.bash_login
-			if os.path.exists(os.path.join(home, '.bash_login')):
-				if SetEnvVar._find_string_in_file(string_to_search, os.path.join(home, '.bash_login')):
-					return True
+        if ndk_root != "" and not self._is_ndk_root_valid(ndk_root) and not ndk_root_found:
+            print 'Error: %s is not a valid path of NDK_ROOT. Ignoring it.' % ndk_root
 
-			# find it in ~/.profile if exit
-			if os.path.exists(os.path.join(home, '.profile')):
-				if SetEnvVar._find_string_in_file(string_to_search, os.path.join(home, '.profile')):
-					return True
-
-		return False
+        if ndk_root_found:
+            print 'FOUND'
+        else:
+            if ndk_root and self._is_ndk_root_valid(ndk_root):
+                if self._set_environment_variable(NDK_ROOT, ndk_root):
+                    ndk_root_added = True
+                    print 'ADDED'
+                    print '  -- Added: %s = %s' % (NDK_ROOT, ndk_root)
 
 
-	@staticmethod
-	def _get_ndk_root():
+        #
+        # ANDROID_SDK_ROOT
+        #
+        print ""        
+        print '-> Looking for ANDROID_SDK_ROOT envrironment variable...',
 
-		if not SetEnvVar._find_environment_variable(NDK_ROOT):
+        android_sdk_root_added = False
+        android_sdk_root_found = self._find_environment_variable(ANDROID_SDK_ROOT)
 
-			# python on linux doesn't include Tkinter model, so let user input in terminal
-			if SetEnvVar._isLinux():
-				SetEnvVar.ndk_root = raw_input('can not find envrironment variable "NDK_ROOT", please enter it: ')		
-			else:
+        if not android_sdk_root and not android_sdk_root_found:
+            print "NOT FOUND"
+            android_sdk_root = self._get_input_value(ANDROID_SDK_ROOT)
+        
+        if android_sdk_root != "" and not self._is_android_sdk_root_valid(android_sdk_root) and not android_sdk_root_found:
+            print 'Error: %s is not a valid path of ANDROID_SDK_ROOT. Ignoring it.' % android_sdk_root
 
-				# pop up a window to let user select path for ndk root
-				import Tkinter, tkFileDialog
+        if android_sdk_root_found:
+            print 'FOUND'
+        else:
+            if android_sdk_root and self._is_android_sdk_root_valid(android_sdk_root):
+                if self._set_environment_variable(ANDROID_SDK_ROOT, android_sdk_root):
+                    android_sdk_root_added = True
+                    print 'ADDED'
+                    print '  -> Added: %s = %s' % (ANDROID_SDK_ROOT, android_sdk_root)
 
-				root = Tkinter.Tk()
-				SetEnvVar._center(root)
+        #
+        if self._isWindows():
+            target = 'registry'
+        else:
+            target = self.file_used_for_setup
 
-				def callback():
-					SetEnvVar.ndk_root = tkFileDialog.askdirectory()
-					root.destroy()
+        if console_added or ndk_root_added or android_sdk_root_added:
+            print '\nSet up successfull:'
 
-				frame = Tkinter.Frame(root)
-				Tkinter.Label(frame, text='select path for ndk root').pack(side=Tkinter.LEFT)
-				Tkinter.Button(frame, text='...', command=callback).pack(side=Tkinter.LEFT)
-				frame.pack()
-				root.mainloop()
-
-			return True
-
-		return False
-
-	# display a window in center and put it on top
-	@staticmethod
-	def _center(win):
-		win.update_idletasks()
-		width = win.winfo_width()
-		height = win.winfo_height()
-		x = (win.winfo_screenwidth() / 2) - (width / 2)
-		y = (win.winfo_screenheight() / 2) - (height / 2)
-		win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
-		win.wm_attributes('-topmost', 1)
-
-
-	@staticmethod
-	def set_ndk_root(value):
-
-		ndk_root_updated = False
-
-		if value:
-			SetEnvVar.ndk_root = value
-			ndk_root_updated = True
-		else:
-			ndk_root_updated = SetEnvVar._get_ndk_root()
-
-		if SetEnvVar.ndk_root:
-			os.environ[NDK_ROOT] = SetEnvVar.ndk_root
-			SetEnvVar._set_environment_variable(NDK_ROOT, SetEnvVar.ndk_root)
-			ndk_root_updated = True
-		else:
-			ndk_root_updated = False
-
-		return ndk_root_updated
-
-	@staticmethod
-	def set_console_root():
-
-		if not SetEnvVar._find_environment_variable(COCOS_CONSOLE_ROOT):
-			cocos_consle_root = os.path.join(SetEnvVar.current_absolute_path, 'tools/cocos2d-console/bin')
-			SetEnvVar._set_environment_variable(COCOS_CONSOLE_ROOT, cocos_consle_root)
-			return True
-
-		return False
-
-	@staticmethod
-	def set_environment_variables(ndk_root):
-
-		console_updated = SetEnvVar.set_console_root()
-		ndk_root_updated = SetEnvVar.set_ndk_root(ndk_root)
-
-		if SetEnvVar._isWindows():
-			if console_updated or ndk_root_updated:
-				result_string = 'Set up successful.' 
-				if console_updated:
-					result_string += 'COCOS_CONSOLE_ROOT was added into register table.\n'
-				if ndk_root_updated:
-					result_string += 'NDK_ROOT was added into register table.'
-
-				print result_string
-		else:
-			if console_updated or ndk_root_updated:
-				result_string = 'Set up successful.' 
-				if console_updated:
-					result_string += 'COCOS_CONSOLE_ROOT was added into %s.\n' % SetEnvVar.file_to_write_environment
-				if ndk_root_updated:
-					result_string += 'NDK_ROOT was added into %s.' % SetEnvVar.file_to_write_environment
-
-				print result_string
-
+            if console_added:
+                print '\tCOCOS_CONSOLE_ROOT was added into %s' % target
+            if ndk_root_added:
+                print '\tNDK_ROOT was added into %s' % target
+            if android_sdk_root_added:
+                print '\tANDROID_SDK_ROOT was added into %s' % target
+        else:
+            print '\nCOCOS_CONSOLE_ROOT was already added. Edit "%s" for manual changes' % target
 
 if __name__ == '__main__':
-	
-	parser = OptionParser()
-	parser.add_option('-n', '--ndkroot', dest='ndk_root', help='directory of ndk root')
-	opts, args = parser.parse_args()
+    parser = OptionParser()
+    parser.add_option('-n', '--ndkroot', dest='ndk_root', help='directory of ndk root')
+    parser.add_option('-a', '--androidsdkroot', dest='android_sdk_root', help='directory of android sdk root')
+    opts, args = parser.parse_args()
 
-	# ndk_root is passed in
-	if opts.ndk_root:
-		os.environ[NDK_ROOT] = opts.ndk_root
-		SetEnvVar.ndk_root_passed = True
-		SetEnvVar.set_environment_variables(opts.ndk_root)
-		exit(0)
-
-	# set environment variables
-	SetEnvVar.set_environment_variables(None)
-		
+    # set environment variables
+    env = SetEnvVar()
+    env.set_environment_variables(opts.ndk_root, opts.android_sdk_root)
