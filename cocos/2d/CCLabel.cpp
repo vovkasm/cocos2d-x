@@ -1361,7 +1361,14 @@ const Size& Label::getContentSize() const
     {
         const_cast<Label*>(this)->updateContent();
     }
-    return Node::getContentSize();
+    return _contentSize;
+}
+
+Rect Label::getBoundingBox() const
+{
+    const_cast<Label*>(this)->getContentSize();
+
+    return Node::getBoundingBox();
 }
 
 void Label::listenToBackground(EventCustom *event)

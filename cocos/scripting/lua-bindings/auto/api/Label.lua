@@ -339,6 +339,11 @@
 -- @return size_table#size_table ret (return value: size_table)
         
 --------------------------------
+-- @function [parent=#Label] getBoundingBox 
+-- @param self
+-- @return rect_table#rect_table ret (return value: rect_table)
+        
+--------------------------------
 -- @function [parent=#Label] updateDisplayedColor 
 -- @param self
 -- @param #color3B_table color3b
