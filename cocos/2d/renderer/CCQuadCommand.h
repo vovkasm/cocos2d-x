@@ -52,7 +52,6 @@ public:
     //TODO use material to decide if it is translucent
     inline bool isTranslucent() const { return true; }
 
-    void generateMaterialID();
     inline uint32_t getMaterialID() const { return _materialID; }
 
     inline GLuint getTextureID() const { return _textureID; }
@@ -67,19 +66,20 @@ public:
 
     inline const kmMat4& getModelView() const { return _mv; }
     
-protected:
-    void convertIntToByteArray(int value, char* output);
+private:
+    void generateMaterialID();
     
+protected:    
     uint32_t _materialID;
 
-    //Maternal
     GLuint _textureID;
-    
-    bool _dirty;
+    GLuint _lastTextureID;
 
     GLProgram* _shader;
+    GLProgram* _lastShader;
 
     BlendFunc _blendType;
+    BlendFunc _lastBlendType;
 
     V3F_C4B_T2F_Quad* _quads;
     ssize_t _quadsCount;
