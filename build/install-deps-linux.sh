@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Change directory to the location of this script
-cd $(dirname ${BASH_SOURCE[0]})
+# Find cocos root
+SCRIPT=$(readlink -f "$0")
+COCOS_DIR=$(dirname $(dirname ${SCRIPT}))
 
 if [ ! $(command -v apt-get) ]; then
   echo "Not a .deb package system. Please install dependencies manually"
@@ -52,5 +53,5 @@ if [ -n "$MISSING" ]; then
 fi
 
 # install glfw
-../tools/travis-scripts/install_glfw.sh
+${COCOS_DIR}/tools/travis-scripts/install_glfw.sh
 
