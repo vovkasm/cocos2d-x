@@ -47,8 +47,14 @@ def add_apt_repository(repo):
         subprocess.check_call(['sudo', 'add-apt-repository', '-y', repo])
 
 def if_apt_package_missing(pkg):
-    output = subprocess.check_output(['dpkg-query', '-W', "--showformat='${Status}'", pkg])
-    return "install ok installed" not in output
+    ret = True
+    try:
+        output = subprocess.check_output(['dpkg-query', '-W', "--showformat='${Status}'", pkg])
+        ret = "install ok installed" not in output
+    except subprocess.CalledProcessError as e:
+        ret = True
+
+    return ret
 
 def linux_main():
     distname, distversion, distid = platform.linux_distribution()
