@@ -46,15 +46,14 @@ def add_apt_repository(repo):
         print "Add %s to repositories..." % (repo)
         subprocess.check_call(['sudo', 'add-apt-repository', '-y', repo])
 
-def if_apt_package_missing(pkg):
-    ret = True
+def if_apt_package_installed(pkg):
     try:
         output = subprocess.check_output(['dpkg-query', '-W', "--showformat='${Status}'", pkg])
-        ret = "install ok installed" not in output
+        if "install ok installed" in output:
+            return True
     except subprocess.CalledProcessError as e:
-        ret = True
-
-    return ret
+        return False
+    return False
 
 def linux_main():
     distname, distversion, distid = platform.linux_distribution()
@@ -63,6 +62,9 @@ def linux_main():
     script_dir = os.path.dirname(os.path.realpath(__file__))
     cocos_dir = os.path.dirname(script_dir)
     print "cocos dir: %s" % (cocos_dir)
+
+    if not distname == 'Ubuntu':
+        raise Exception("Only for ubuntu for now...")
 
     repos = get_config_for_keys('repos', distname, distversion)
     for repo in repos:
@@ -73,7 +75,7 @@ def linux_main():
 
     print "Check missing dependencies..."
     required_packages = get_config_for_keys('packages', distname, distversion)
-    missing_packages = filter(if_apt_package_missing, required_packages)
+    missing_packages = filter(lambda pkg: not if_apt_package_installed(pkg), required_packages)
 
     if len(missing_packages) > 0:
         print "Install missing packages: %s" % (missing_packages)
@@ -83,9 +85,21 @@ def linux_main():
 
     print "Done."
 
-if __name__ == '__main__':
-    
-    if not sys.platform.startswith('linux'):
-        raise Exception("This script only for linux")
+class Installer( object ):
+    def run( self ):
+        raise Exception("This script not support '%s' platform" % (sys.platform))
 
-    linux_main()
+
+class InstallerLinux( Installer ):
+    def run( self ):
+        linux_main()
+
+
+if __name__ == '__main__':
+    plat = sys.platform
+    installer_class = Installer
+    if plat.startswith('linux'):
+        installer_class = InstallerLinux
+
+    installer = installer_class()
+    installer.run()
