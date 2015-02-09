@@ -35,45 +35,35 @@ set(SAMPLE_SRC
 )
 
 # add the executable
-add_executable(${APP_NAME}
-  ${SAMPLE_SRC}
-)
+add_executable(${APP_NAME} WIN32 MACOSX_BUNDLE ${SAMPLE_SRC})
 
 target_link_libraries(${APP_NAME} cocos2d)
 
 if(MSVC)
+  set_target_properties(${APP_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/${APP_NAME}")
 
-  #get our resources
-  add_custom_command(TARGET ${APP_NAME} PRE_BUILD
-                     COMMAND ${CMAKE_COMMAND} -E copy_directory
-                         ${CMAKE_CURRENT_SOURCE_DIR}/Resources ${CMAKE_CURRENT_BINARY_DIR})
   #get our dlls
-  add_custom_command(TARGET ${APP_NAME} PRE_BUILD
-                     COMMAND ${CMAKE_COMMAND} -E copy
-                     ${CMAKE_CURRENT_SOURCE_DIR}/../../external/win32-specific/gles/prebuilt/glew32.dll 
-					 ${CMAKE_CURRENT_BINARY_DIR})
+  string(REPLACE ";" "$<SEMICOLON>" DLL_DIRS_ARG "${DLL_DIRS}")
+  add_custom_command(
+    TARGET ${APP_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -DAPP_DIR=$<TARGET_FILE:${APP_NAME}> -DDLL_DIRS:PATH=${DLL_DIRS_ARG} -P ${Cocos2d-X_SOURCE_DIR}/cmake/bundle_fixup.cmake
+    COMMENT "Copying dependant dlls"
+    )
 
-  add_custom_command(TARGET ${APP_NAME} PRE_BUILD
-                     COMMAND ${CMAKE_COMMAND} -E copy
-                     ${CMAKE_CURRENT_SOURCE_DIR}/../../external/win32-specific/zlib/prebuilt/zlib1.dll 
-					 ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-
-  #Visual Studio Defaults to wrong type
-  set_target_properties(${APP_NAME} PROPERTIES LINK_FLAGS_DEBUG "/SUBSYSTEM:WINDOWS")
-  set_target_properties(${APP_NAME} PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS")
-
+  add_custom_command(
+    TARGET ${APP_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/Resources $<TARGET_FILE_DIR:${APP_NAME}>/${RES_PREFIX}
+    COMMENT "Copying resources"
+    )
 elseif(MACOSX OR APPLE)
-  set_target_properties(${APP_NAME} PROPERTIES
-      MACOSX_BUNDLE 1
-      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-      )
+  set_target_properties(${APP_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 else()
 
   set(APP_BIN_DIR "${CMAKE_BINARY_DIR}/bin/${APP_NAME}")
 
-  set_target_properties(${APP_NAME} PROPERTIES
-       RUNTIME_OUTPUT_DIRECTORY  "${APP_BIN_DIR}")
+  set_target_properties(${APP_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY  "${APP_BIN_DIR}")
+
   add_custom_command(TARGET ${APP_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/Resources $<TARGET_FILE_DIR:${APP_NAME}>${RES_PREFIX}
     )

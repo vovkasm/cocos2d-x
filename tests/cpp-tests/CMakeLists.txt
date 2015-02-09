@@ -247,20 +247,14 @@ include_directories(
 )
 
 # add the executable
-add_executable(${APP_NAME}
-  ${TESTS_SRC}
-  ${EXTENDED_TESTS_SRC}
-)
+add_executable(${APP_NAME} WIN32 MACOSX_BUNDLE ${TESTS_SRC} ${EXTENDED_TESTS_SRC})
 
-target_link_libraries(${APP_NAME}
-  cocos2d
-)
+target_link_libraries(${APP_NAME} cocos2d)
 
 cocos_use_pkg(${APP_NAME} CURL)
 
 if(MACOSX OR APPLE)
   set_target_properties(${APP_NAME} PROPERTIES
-      MACOSX_BUNDLE 1
       RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
       )
 
