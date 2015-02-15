@@ -24,9 +24,12 @@ set(SAMPLE_SRC
   Classes/HelloWorldScene.cpp
 )
 
+
 cocos_add_executable(${APP_NAME}
     SOURCES ${SAMPLE_SRC}
-    BUNDLE_RESOURCES Resources
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
+
+file(GLOB MY_RES "Resources/*")
+cocos_add_resources(${APP_NAME} ${MY_RES})
 

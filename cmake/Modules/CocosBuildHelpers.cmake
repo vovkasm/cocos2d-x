@@ -15,65 +15,41 @@ macro(pre_build TARGET_NAME)
   add_dependencies(${TARGET_NAME} ${TARGET_NAME}_PRE_BUILD)
 endmacro()
 
-function(cocos_mark_resources)
-    set(oneValueArgs BASEDIR RESOURCEBASE)
-    set(multiValueArgs FILES)
-    cmake_parse_arguments(opt "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-
-    if(NOT opt_RESOURCEBASE)
-        if(MSVC)
-            set(opt_RESOURCEBASE "")
-        else()
-            set(opt_RESOURCEBASE Resources)
-        endif()
+function(cocos_add_resources target)
+    set(oneValueArgs PREFIX)
+    cmake_parse_arguments(opt "" "${oneValueArgs}" "" ${ARGN})
+    if(NOT opt_PREFIX)
+        set(opt_PREFIX /)
+    endif()
+    if(NOT (opt_PREFIX MATCHES "^/"))
+        set(opt_PREFIX "/${opt_PREFIX}")
     endif()
 
-    get_filename_component(BASEDIR_ABS ${opt_BASEDIR} ABSOLUTE)
-    foreach(RES_FILE ${opt_FILES} ${opt_UNPARSED_ARGUMENTS})
-        get_filename_component(RES_FILE_ABS ${RES_FILE} ABSOLUTE)
-        file(RELATIVE_PATH RES ${BASEDIR_ABS} ${RES_FILE_ABS})
-        get_filename_component(RES_LOC ${RES} PATH)
-        set_source_files_properties(${RES_FILE} PROPERTIES
-            MACOSX_PACKAGE_LOCATION "${opt_RESOURCEBASE}/${RES_LOC}"
-            HEADER_FILE_ONLY 1
-            )
+    if(MACOSX OR APPLE)
+        set(PLATFORM_RES_PREFIX "\${APP_DIR}/Contents/Resources")
+    elseif(WIN32)
+        set(PLATFORM_RES_PREFIX "\${APP_DIR}")
+    else()
+        set(PLATFORM_RES_PREFIX "\${APP_DIR}/Resources")
+    endif()
+
+    foreach(f ${opt_UNPARSED_ARGUMENTS})
+        get_filename_component(f_abs "${f}" ABSOLUTE)
+
+        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/${target}_make_bundle.cmake "file(COPY \"${f_abs}\" DESTINATION \"${PLATFORM_RES_PREFIX}${opt_PREFIX}\" REGEX \"\\\\.git\" EXCLUDE)\n")
     endforeach()
 endfunction()
 
 function(cocos_add_executable target)
     set(oneValueArgs RUNTIME_OUTPUT_DIRECTORY)
-    set(multiValueArgs SOURCES BUNDLE_RESOURCES)
+    set(multiValueArgs SOURCES)
     cmake_parse_arguments(opt "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT opt_RUNTIME_OUTPUT_DIRECTORY)
         set(opt_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
     endif()
 
-    if(opt_BUNDLE_RESOURCES)
-        set(RESOURCE_FILES)
-        # Mark resources as not-compilable and set bundle prefix
-        foreach(res_ref "${opt_BUNDLE_RESOURCES}")
-            # If it is a directory, then collect individual files
-            get_filename_component(res_ref_abs "${res_ref}" ABSOLUTE)
-            if(IS_DIRECTORY "${res_ref_abs}")
-                file(GLOB_RECURSE res_files_all "${res_ref_abs}/*")
-                foreach(res_file ${res_files_all})
-                    set(res_file_skip 0)
-                    file(RELATIVE_PATH res_file_rel "${res_ref_abs}" "${res_file}")
-                    if(NOT (${res_file_rel} MATCHES "\\.git"))
-                        list(APPEND res_files ${res_file})
-                    endif()
-                endforeach()
-            else()
-                set(res_files "${res_ref}")
-            endif()
-
-            cocos_mark_resources(FILES ${res_files} BASEDIR "${res_ref}")
-            list(APPEND RESOURCE_FILES "${res_files}")
-        endforeach()
-    endif()
-
-    add_executable(${target} WIN32 MACOSX_BUNDLE ${opt_SOURCES} ${RESOURCE_FILES})
+    add_executable(${target} WIN32 MACOSX_BUNDLE ${opt_SOURCES} ${opt_UNPARSED_ARGUMENTS})
     target_link_libraries(${target} cocos2d)
 
     # On macosx we create bundle by default, on other desktop systems we are emulating this behaviour by creating per-application directory
@@ -83,20 +59,11 @@ function(cocos_add_executable target)
         set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${opt_RUNTIME_OUTPUT_DIRECTORY}/${target}")
     endif()
 
-    set(RES_INSTALL_COMMANDS "")
-    if(RESOURCE_FILES AND (NOT (MACOSX OR APPLE)))
-        foreach(res ${RESOURCE_FILES})
-            get_source_file_property(res_location ${res} MACOSX_PACKAGE_LOCATION)
-            if(res_location)
-                set(RES_INSTALL_COMMANDS "${RES_INSTALL_COMMANDS}file(COPY \"${res}\" DESTINATION \"\${APP_DIR}${res_location}\")\n")
-            endif()
-        endforeach()
-    endif()
-    configure_file(${Cocos2d-X_SOURCE_DIR}/cmake/make_bundle.cmake.in make_bundle.cmake @ONLY)
+    configure_file(${Cocos2d-X_SOURCE_DIR}/cmake/make_bundle.cmake.in ${target}_make_bundle.cmake @ONLY)
 
     add_custom_command(
         TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -DAPP_PATH=$<TARGET_FILE:${target}> -P make_bundle.cmake
+        COMMAND ${CMAKE_COMMAND} -DAPP_PATH=$<TARGET_FILE:${target}> -P ${target}_make_bundle.cmake
         COMMENT "Make application bundle"
         )
 

@@ -243,8 +243,11 @@ include_directories(
 
 cocos_add_executable(${APP_NAME}
     SOURCES ${TESTS_SRC} ${EXTENDED_TESTS_SRC}
-    BUNDLE_RESOURCES Resources
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
 
 cocos_use_pkg(${APP_NAME} CURL)
+
+file(GLOB MY_RES "Resources/*")
+cocos_add_resources(${APP_NAME} ${MY_RES})
+
