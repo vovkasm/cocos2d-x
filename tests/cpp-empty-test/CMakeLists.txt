@@ -1,8 +1,8 @@
 set(APP_NAME cpp-empty-test)
 
 if(ANDROID)
-  set(PLATFORM_SRC proj.android/jni/hellocpp/main.cpp)
-elseif(WINDOWS)
+  set(PLATFORM_SRC proj.android/jni/main.cpp)
+elseif(WIN32)
   set(PLATFORM_SRC proj.win32/main.cpp)
 elseif(IOS)
   set(PLATFORM_SRC
@@ -15,8 +15,7 @@ elseif(MACOSX OR APPLE)
 elseif(LINUX)
   set(PLATFORM_SRC proj.linux/main.cpp)
 else()
-  message( FATAL_ERROR "Unsupported platform, CMake will exit" )
-
+  message(FATAL_ERROR "Unsupported platform, CMake will exit")
 endif()
 
 set(SAMPLE_SRC
