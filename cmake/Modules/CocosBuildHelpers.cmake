@@ -84,7 +84,7 @@ function(cocos_add_executable target)
     endif()
 
     set(RES_INSTALL_COMMANDS "")
-    if(RESOURCE_FILES)
+    if(RESOURCE_FILES AND (NOT (MACOSX OR APPLE)))
         foreach(res ${RESOURCE_FILES})
             get_source_file_property(res_location ${res} MACOSX_PACKAGE_LOCATION)
             if(res_location)
