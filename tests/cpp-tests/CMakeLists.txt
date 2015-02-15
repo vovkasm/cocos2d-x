@@ -3,21 +3,16 @@ set(APP_NAME cpp-tests)
 # Use same method as in cocos library
 cocos_find_package(CURL CURL REQUIRED)
 
-if(WIN32)
+if(ANDROID)
+  set(PLATFORM_SRC proj.android/jni/main.cpp)
+elseif(WIN32)
   set(PLATFORM_SRC proj.win32/main.cpp)
-  set(RES_PREFIX "")
-elseif(MACOSX)
+elseif(MACOSX OR APPLE)
   set(PLATFORM_SRC proj.mac/main.cpp)
-
-  file(GLOB_RECURSE RES_FILES Resources/*)
-  cocos_mark_resources(FILES ${RES_FILES} BASEDIR Resources)
-  list(APPEND PLATFORM_SRC ${RES_FILES})
-
 elseif(LINUX)
   set(PLATFORM_SRC proj.linux/main.cpp)
-  set(RES_PREFIX "/Resources")
 else()
-  message( FATAL_ERROR "Unsupported platform, CMake will exit" )
+  message(FATAL_ERROR "Unsupported platform, CMake will exit")
 endif()
 
 set(TESTS_SRC
@@ -246,25 +241,10 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/cocos/editor-support
 )
 
-# add the executable
-add_executable(${APP_NAME} WIN32 MACOSX_BUNDLE ${TESTS_SRC} ${EXTENDED_TESTS_SRC})
-
-target_link_libraries(${APP_NAME} cocos2d)
+cocos_add_executable(${APP_NAME}
+    SOURCES ${TESTS_SRC} ${EXTENDED_TESTS_SRC}
+    BUNDLE_RESOURCES Resources
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
 
 cocos_use_pkg(${APP_NAME} CURL)
-
-if(MACOSX OR APPLE)
-  set_target_properties(${APP_NAME} PROPERTIES
-      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-      )
-
-else()
-    set(APP_BIN_DIR "${CMAKE_BINARY_DIR}/bin/${APP_NAME}")
-
-    set_target_properties(${APP_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${APP_BIN_DIR}")
-
-    pre_build(${APP_NAME}
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/Resources ${APP_BIN_DIR}${RES_PREFIX}
-      )
-endif()
-
