@@ -1,0 +1,8 @@
+set(DLL_DIRS "@DLL_DIRS@")
+
+get_filename_component(APP_DIR "${APP_PATH}" DIRECTORY)
+
+include(BundleUtilities)
+fixup_bundle(${APP_PATH} "" "${DLL_DIRS}")
+
+@RES_INSTALL_COMMANDS@

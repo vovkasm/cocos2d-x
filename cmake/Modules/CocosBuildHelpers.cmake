@@ -21,7 +21,11 @@ function(cocos_mark_resources)
     cmake_parse_arguments(opt "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT opt_RESOURCEBASE)
-        set(opt_RESOURCEBASE Resources)
+        if(MSVC)
+            set(opt_RESOURCEBASE "")
+        else()
+            set(opt_RESOURCEBASE Resources)
+        endif()
     endif()
 
     get_filename_component(BASEDIR_ABS ${opt_BASEDIR} ABSOLUTE)
@@ -34,6 +38,68 @@ function(cocos_mark_resources)
             HEADER_FILE_ONLY 1
             )
     endforeach()
+endfunction()
+
+function(cocos_add_executable target)
+    set(oneValueArgs RUNTIME_OUTPUT_DIRECTORY)
+    set(multiValueArgs SOURCES BUNDLE_RESOURCES)
+    cmake_parse_arguments(opt "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    if(NOT opt_RUNTIME_OUTPUT_DIRECTORY)
+        set(opt_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+    endif()
+
+    if(opt_BUNDLE_RESOURCES)
+        set(RESOURCE_FILES)
+        # Mark resources as not-compilable and set bundle prefix
+        foreach(res_ref "${opt_BUNDLE_RESOURCES}")
+            # If it is a directory, then collect individual files
+            get_filename_component(res_ref_abs "${res_ref}" ABSOLUTE)
+            if(IS_DIRECTORY "${res_ref_abs}")
+                file(GLOB_RECURSE res_files_all "${res_ref_abs}/*")
+                foreach(res_file ${res_files_all})
+                    set(res_file_skip 0)
+                    file(RELATIVE_PATH res_file_rel "${res_ref_abs}" "${res_file}")
+                    if(NOT (${res_file_rel} MATCHES "\\.git"))
+                        list(APPEND res_files ${res_file})
+                    endif()
+                endforeach()
+            else()
+                set(res_files "${res_ref}")
+            endif()
+
+            cocos_mark_resources(FILES ${res_files} BASEDIR "${res_ref}")
+            list(APPEND RESOURCE_FILES "${res_files}")
+        endforeach()
+    endif()
+
+    add_executable(${target} WIN32 MACOSX_BUNDLE ${opt_SOURCES} ${RESOURCE_FILES})
+    target_link_libraries(${target} cocos2d)
+
+    # On macosx we create bundle by default, on other desktop systems we are emulating this behaviour by creating per-application directory
+    if(MACOSX OR APPLE)
+        set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${opt_RUNTIME_OUTPUT_DIRECTORY}")
+    else()
+        set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${opt_RUNTIME_OUTPUT_DIRECTORY}/${target}")
+    endif()
+
+    set(RES_INSTALL_COMMANDS "")
+    if(RESOURCE_FILES)
+        foreach(res ${RESOURCE_FILES})
+            get_source_file_property(res_location ${res} MACOSX_PACKAGE_LOCATION)
+            if(res_location)
+                set(RES_INSTALL_COMMANDS "${RES_INSTALL_COMMANDS}file(COPY \"${res}\" DESTINATION \"\${APP_DIR}${res_location}\")\n")
+            endif()
+        endforeach()
+    endif()
+    configure_file(${Cocos2d-X_SOURCE_DIR}/cmake/make_bundle.cmake.in make_bundle.cmake @ONLY)
+
+    add_custom_command(
+        TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -DAPP_PATH=$<TARGET_FILE:${target}> -P make_bundle.cmake
+        COMMENT "Make application bundle"
+        )
+
 endfunction()
 
 # cocos_find_package(pkg args...)
