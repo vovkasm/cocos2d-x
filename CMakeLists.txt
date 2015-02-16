@@ -297,14 +297,12 @@ set(XXHASH_LIBRARIES xxhash)
 # libcocos2d.a
 add_subdirectory(cocos)
 
-if(MSVC)
-  get_target_property(COCOS_LINK_LIBS cocos2d LINK_LIBRARIES)
-  foreach(link_lib ${COCOS_LINK_LIBS})
-    get_filename_component(dir ${link_lib} DIRECTORY)
-    list(APPEND DLL_DIRS ${dir})
-  endforeach()
-  list(REMOVE_DUPLICATES DLL_DIRS)
-endif()
+get_target_property(COCOS_LINK_LIBS cocos2d LINK_LIBRARIES)
+foreach(link_lib ${COCOS_LINK_LIBS})
+  get_filename_component(dir ${link_lib} DIRECTORY)
+  list(APPEND DLL_DIRS ${dir})
+endforeach()
+list(REMOVE_DUPLICATES DLL_DIRS)
 
 # build cpp tests
 if(BUILD_CPP_TESTS)
