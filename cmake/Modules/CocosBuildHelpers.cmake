@@ -59,6 +59,11 @@ function(cocos_add_executable target)
         set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${opt_RUNTIME_OUTPUT_DIRECTORY}/${target}")
     endif()
 
+    # Make Linux executable relocatable
+    if(LINUX)
+        set_target_properties(${target} PROPERTIES INSTALL_RPATH "\$ORIGIN/" BUILD_WITH_INSTALL_RPATH TRUE)
+    endif()
+
     configure_file(${Cocos2d-X_SOURCE_DIR}/cmake/make_bundle.cmake.in ${target}_make_bundle.cmake @ONLY)
 
     add_custom_command(
