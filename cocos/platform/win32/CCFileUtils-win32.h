@@ -33,6 +33,8 @@ THE SOFTWARE.
 #include "base/ccTypes.h"
 #include <string>
 #include <vector>
+#include <locale>
+#include <codecvt>
 
 NS_CC_BEGIN
 
@@ -99,6 +101,12 @@ protected:
      */
     virtual std::string getFullPathForDirectoryAndFilename(const std::string& directory, const std::string& filename) const override;
 
+private:
+    void _checkPath();
+    std::string _getExePathWin();
+    void _logAPIError(const std::string& msg, DWORD errCode);
+
+    std::wstring_convert<std::codecvt_utf8<WCHAR> > _iconv;
 };
 
 // end of platform group

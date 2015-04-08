@@ -30,6 +30,7 @@ THE SOFTWARE.
 #include "platform/CCCommon.h"
 #include <Shlobj.h>
 #include <cstdlib>
+#include <sstream>
 
 using namespace std;
 
@@ -56,20 +57,60 @@ static inline std::string convertPathFormatToUnixStyle(const std::string& path)
     return ret;
 }
 
-static void _checkPath()
+void FileUtilsWin32::_logAPIError(const std::string& msg, DWORD errCode)
 {
-    if (0 == s_resourcePath.length())
+    WCHAR* lpStrErr;
+    ostringstream os;
+    os << msg << " (code " << errCode << ")";
+
+    DWORD ret = ::FormatMessageW(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        errCode,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPWSTR)&lpStrErr,
+        0, NULL);
+
+    if (ret != 0) {
+        os << " : " << _iconv.to_bytes(lpStrErr);
+    }
+
+    cocos2d::log(os.str().c_str());
+    os.flush(); // Hack to make os object live until log exited.
+}
+
+std::string FileUtilsWin32::_getExePathWin()
+{
+    const int bufLen = CC_MAX_PATH;
+    WCHAR lpFilename[bufLen] = { 0 };
+    DWORD nSize = ::GetModuleFileNameW(NULL, lpFilename, bufLen);
+    if (nSize == 0)
     {
-        WCHAR *pUtf16ExePath = nullptr;
-        _get_wpgmptr(&pUtf16ExePath);
+        DWORD err = ::GetLastError();
+        _logAPIError("ERROR: Can not find path of the exe file", err);
+        return "";
+    }
+    else if (nSize == bufLen) {
+        DWORD err = ::GetLastError();
+        _logAPIError("ERROR: path of the exe file was truncated, please increase CC_MAX_PATH", err);
+        return "";
+    }
+
+    return convertPathFormatToUnixStyle(_iconv.to_bytes(lpFilename));
+}
+
+void FileUtilsWin32::_checkPath()
+{
+    if (s_resourcePath.empty())
+    {
+        std::string exePath = _getExePathWin();
 
         // We need only directory part without exe
-        WCHAR *pUtf16DirEnd = wcsrchr(pUtf16ExePath, L'\\');
+        auto lastSeparatorPos = exePath.find_last_of('/');
+        if (lastSeparatorPos != std::string::npos)
+            exePath.erase(lastSeparatorPos + 1);
 
-        char utf8ExeDir[CC_MAX_PATH] = { 0 };
-        int nNum = WideCharToMultiByte(CP_UTF8, 0, pUtf16ExePath, pUtf16DirEnd-pUtf16ExePath+1, utf8ExeDir, sizeof(utf8ExeDir), nullptr, nullptr);
-
-        s_resourcePath = convertPathFormatToUnixStyle(utf8ExeDir);
+        s_resourcePath = exePath;
     }
 }
 
