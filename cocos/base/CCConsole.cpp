@@ -330,7 +330,6 @@ Console::Console()
 	{
 		_commands[commands[i].name] = commands[i];
 	}
-	_writablePath = FileUtils::getInstance()->getWritablePath();
 }
 
 Console::~Console()
@@ -870,7 +869,7 @@ void Console::commandUpload(int fd)
     }
     *ptr = 0;
 
-    std::string filepath = _writablePath + std::string(buf);
+    std::string filepath = FileUtils::getInstance()->getWritablePath() + std::string(buf);
 
     FILE* fp = fopen(filepath.c_str(), "wb");
     if(!fp)
